@@ -22,7 +22,10 @@ cmake_policy(SET CMP0048 NEW)
 set(CMAKE_BUILD_TYPE_INIT "Release")
 project(cuBQL VERSION 1.0.0 LANGUAGES C CXX)
 
-
+if (CUBQL_DISABLE_CUDA)
+  message("#cuBQL: CUDA _DISABLED_ by user request")
+  set(CUBQL_HAVE_CUDA OFF)
+else()
 if (NOT CMAKE_CUDA_COMPILER)
   include(CheckLanguage)
   check_language(CUDA)
@@ -39,6 +42,7 @@ else()
     " ===========================================================\n"
     )
   set(CUBQL_HAVE_CUDA OFF)
+endif()
 endif()
 
 
@@ -72,7 +76,7 @@ if (CUBQL_IS_SUBPROJECT)
   # Check if CUBQL_CUDA_ARCHITECTURES is set, and throw an error if
   # not
   # ------------------------------------------------------------------
-  if ((NOT CMAKE_CUDA_ARCHITECTURES)
+  if (CUBQL_HAVE_CUDA AND (NOT CMAKE_CUDA_ARCHITECTURES)
       OR
       ((${CMAKE_VERSION} VERSION_LESS 3.24) AND ("${CMAKE_CUDA_ARCHITECTURES}" STREQUAL "52"))
       )
