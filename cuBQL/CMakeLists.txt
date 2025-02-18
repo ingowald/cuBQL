@@ -44,6 +44,15 @@ target_sources(cuBQL INTERFACE
 target_include_directories(cuBQL INTERFACE
   ${PROJECT_SOURCE_DIR}
   )
+set_target_properties(cuBQL
+  PROPERTIES
+  #CXX_VISIBILITY_PRESET  default
+  #CUDA_VISIBILITY_PRESET default
+  POSITION_INDEPENDENT_CODE ON
+  CUDA_SEPARABLE_COMPILATION ON
+  CUDA_RESOLVE_DEVICE_SYMBOLS ON
+  CUDA_USE_STATIC_CUDA_RUNTIME ON
+  )
   
 # helper for creating type- and device-specific implementations of
 # cubql; i.e., one for host_float4, one for cuda_int3, etc. Since
@@ -86,10 +95,6 @@ function(add_specific_instantiation device suffix T D)
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
       )
-    set_target_properties(cuBQL_${device}_${T}${D}_static
-      PROPERTIES
-      POSITION_INDEPENDENT_CODE ON
-      )
 #    set_target_properties(cuBQL_${device}_${T}${D}_static
 #      PROPERTIES
 #      CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES}"
@@ -102,6 +107,15 @@ function(add_specific_instantiation device suffix T D)
   target_link_libraries(cuBQL_${device}_${T}${D}_static
     PUBLIC
     cuBQL
+    )
+  set_target_properties(cuBQL_${device}_${T}${D}_static
+    PROPERTIES
+    #CXX_VISIBILITY_PRESET  default
+    #CUDA_VISIBILITY_PRESET default
+    POSITION_INDEPENDENT_CODE ON
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    CUDA_USE_STATIC_CUDA_RUNTIME ON
     )
   target_compile_definitions(cuBQL_${device}_${T}${D}_static
     PRIVATE
