@@ -1,5 +1,5 @@
 # ======================================================================== #
-# Copyright 2023-2024 Ingo Wald                                            #
+# Copyright 2023-2025 Ingo Wald                                            #
 #                                                                          #
 # Licensed under the Apache License, Version 2.0 (the "License");          #
 # you may not use this file except in compliance with the License.         #
@@ -46,8 +46,8 @@ target_include_directories(cuBQL INTERFACE
   )
 set_target_properties(cuBQL
   PROPERTIES
-  #CXX_VISIBILITY_PRESET  default
-  #CUDA_VISIBILITY_PRESET default
+  CXX_VISIBILITY_PRESET  default
+  CUDA_VISIBILITY_PRESET default
   POSITION_INDEPENDENT_CODE ON
   CUDA_SEPARABLE_COMPILATION ON
   CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -68,10 +68,6 @@ function(add_specific_instantiation device suffix T D)
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
       )
-#    set_target_properties(cuBQL_${device}_${T}${D}
-#      PROPERTIES
-#      CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES}"
-#      )
   endif()
   set_target_properties(cuBQL_${device}_${T}${D}
     PROPERTIES
@@ -95,10 +91,6 @@ function(add_specific_instantiation device suffix T D)
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
       )
-#    set_target_properties(cuBQL_${device}_${T}${D}_static
-#      PROPERTIES
-#      CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES}"
-#      )
   endif()
   set_target_properties(cuBQL_${device}_${T}${D}_static
     PROPERTIES
@@ -110,8 +102,8 @@ function(add_specific_instantiation device suffix T D)
     )
   set_target_properties(cuBQL_${device}_${T}${D}_static
     PROPERTIES
-    #CXX_VISIBILITY_PRESET  default
-    #CUDA_VISIBILITY_PRESET default
+    CXX_VISIBILITY_PRESET  default
+    CUDA_VISIBILITY_PRESET default
     POSITION_INDEPENDENT_CODE ON
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
