@@ -1,5 +1,5 @@
 # ======================================================================== #
-# Copyright 2023-2024 Ingo Wald                                            #
+# Copyright 2023-2025 Ingo Wald                                            #
 #                                                                          #
 # Licensed under the Apache License, Version 2.0 (the "License");          #
 # you may not use this file except in compliance with the License.         #
@@ -16,11 +16,9 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-
-
 cmake_policy(SET CMP0048 NEW)
 set(CMAKE_BUILD_TYPE_INIT "Release")
-project(cuBQL VERSION 1.0.0 LANGUAGES C CXX)
+project(cuBQL VERSION 1.1.0 LANGUAGES C CXX)
 
 if (CUBQL_DISABLE_CUDA)
   message("#cuBQL: CUDA _DISABLED_ by user request")
@@ -59,9 +57,6 @@ else()
   set(CUBQL_IS_SUBPROJECT OFF)
 endif()
 
-
-
-
 # ------------------------------------------------------------------
 # check if we're a subproject, and if so, only include the library
 # itself
@@ -85,8 +80,8 @@ if (CUBQL_IS_SUBPROJECT)
       " #cuBQL: you've included cuBQL as a subproject (as it should!),\n"
       " but CMAKE_CUDA_ARCHITECTURES was not set. As it is\n"
       " almost certainly going to cause some problems in your project\n"
-      " if we were we were to build cuBQL for different archs than your own\n"
-      " project, we will cowardly refuse do so. Before including cuBQL\n"
+      " if we were to just build cuBQL for archs different than your own\n"
+      " project's we will cowardly refuse do so. Before including cuBQL\n"
       " you should explicitly set the cmake variable\n"
       " CMAKE_CUDA_ARCHITECTURES to whatever the main project will want\n"
       " to use, too.\n"
@@ -131,10 +126,7 @@ else()
   set(CUBQL_CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES_INIT}" CACHE STRING
     "Which CUDA architecture to build for")
   set(CMAKE_CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES}")
-  #  message("CMAKE_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}")
   
-  # No reason to set CMAKE_CONFIGURATION_TYPES if it's not a multiconfig generator
-  # Also no reason mess with CMAKE_BUILD_TYPE if it's a multiconfig generator.
   if(CMAKE_CONFIGURATION_TYPES) # multiconfig generator?
     set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE) 
   else()
@@ -149,10 +141,9 @@ else()
   SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
   SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
   SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-  # we're building locally - set 'global' cuda arch for samples and test cases
 endif()
 
-message("#cuBQL: compiling for CMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}")
+message("#cuBQL: compiling with CMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}")
 add_subdirectory(cuBQL)
 
 option(CUBQL_ENABLE_TESTING "Enable Testing?" OFF)
