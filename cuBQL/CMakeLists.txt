@@ -46,8 +46,8 @@ target_include_directories(cuBQL INTERFACE
   )
 set_target_properties(cuBQL
   PROPERTIES
-  #CXX_VISIBILITY_PRESET  default
-  #CUDA_VISIBILITY_PRESET default
+  CXX_VISIBILITY_PRESET  default
+  CUDA_VISIBILITY_PRESET default
   POSITION_INDEPENDENT_CODE ON
   CUDA_SEPARABLE_COMPILATION ON
   CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -110,8 +110,8 @@ function(add_specific_instantiation device suffix T D)
     )
   set_target_properties(cuBQL_${device}_${T}${D}_static
     PROPERTIES
-    #CXX_VISIBILITY_PRESET  default
-    #CUDA_VISIBILITY_PRESET default
+    CXX_VISIBILITY_PRESET  default
+    CUDA_VISIBILITY_PRESET default
     POSITION_INDEPENDENT_CODE ON
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
