@@ -18,6 +18,7 @@
 
 # include <cuda_runtime_api.h>
 # include "cuBQL/math/box.h"
+# include <map>
 
 namespace cuBQL {
 
@@ -46,29 +47,64 @@ namespace cuBQL {
     }
   };
 
+  /*! allocator that uses regular cudaMalloc to allocate memory. can
+      be a bit slower than using aync mallocs, but in case of
+      multi-gpu system is easier to control which device the memory
+      gets allocated on */
+  struct DeviceMemoryResource final : GpuMemoryResource {
+    DeviceMemoryResource()
+    {}
+    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override {
+      return cudaMalloc(ptr, size);
+    }
+    cudaError_t free(void* ptr, cudaStream_t s) override
+    {
+      return cudaFree(ptr);
+    }
+  };
+  
+#if CUDART_VERSION >= 11020
+  /* Allocator that uses cudaMallocAsync to allocate memory. This can be much faster than cudaMalloc because it doesn't require a device sync for each malloc; but .. CAREFUL: to get memory to be allocated on a given GPU it is NOT sufficient to just do a cudaSetDevice() to the given GPU - async memory gets allocated on the GPU to which the given stream passed to the builder is associated. If you pass the default stream 0, your mallocs will always happen on the first device! */
+  struct AsyncGpuMemoryResource final : GpuMemoryResource {
+    AsyncGpuMemoryResource(int devID)
+    {
+      static bool memPoolInitialized = false;
+      if (!memPoolInitialized) {
+        cudaGetDeviceCount(&numDevices);
+        for (int i=0;i<numDevices;i++) {
+          cudaMemPool_t mempool;
+          cudaDeviceGetDefaultMemPool(&mempool, devID);
+          uint64_t threshold = UINT64_MAX;
+          cudaMemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold);
+        }
+        memPoolInitialized = true;;
+      }
+    }
+    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override {
+#ifndef NDEBUG
+      if (numDevices > 1 && s == 0)
+        std::cerr << "@cuBQL: warning; async memory allocator used with default stream."
+                  << std::endl;
+#endif
+      return cudaMallocAsync(ptr, size, s);
+    }
+    cudaError_t free(void* ptr, cudaStream_t s) override
+    {
+      return cudaFreeAsync(ptr, s);
+    }
+    int numDevices = 0;
+  };
+
   /* by default let's use cuda malloc async, which is much better and
      faster than regular malloc; but that's available on cuda 11, so
      let's add a fall back for older cuda's, too */
-#if CUDART_VERSION >= 11020
-  struct AsyncGpuMemoryResource final : GpuMemoryResource {
-    AsyncGpuMemoryResource()
-    {
-      cudaMemPool_t mempool;
-      cudaDeviceGetDefaultMemPool(&mempool, 0);
-      uint64_t threshold = UINT64_MAX;
-      cudaMemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold);
-    }
-    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override {
-      return cudaMallocAsync(ptr, size, s);
-    }
-    cudaError_t free(void* ptr, cudaStream_t s) override {
-      return cudaFreeAsync(ptr, s);
-    }
-  };
-
   inline GpuMemoryResource &defaultGpuMemResource() {
-    static AsyncGpuMemoryResource memResource;
-    return memResource;
+    static std::map<int,AsyncGpuMemoryResource*> asyncMemPerDevice;
+    int devID;
+    cudaGetDevice(&devID);
+    if (asyncMemPerDevice[devID] == nullptr)
+      asyncMemPerDevice[devID] = new AsyncGpuMemoryResource(devID);
+    return *asyncMemPerDevice[devID];
   }
 #else
   inline GpuMemoryResource &defaultGpuMemResource() {

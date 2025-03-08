@@ -38,6 +38,9 @@ namespace cuBQL {
   {
     if (numBoxes == 0) return;
 
+    int devID;
+    cudaGetDevice(&devID);
+    
     if (buildConfig.buildMethod == BuildConfig::SAH) {
       if (buildConfig.makeLeafThreshold == 0)
         // unless explicitly specified, use default for spatial median
