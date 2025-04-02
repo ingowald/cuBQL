@@ -183,8 +183,8 @@ namespace cuBQL {
           float rel
             = (prim_d - centBounds.get_lower(d))
             / (centBounds.get_upper(d)-centBounds.get_lower(d)+1e-20f);
-          bin = int(rel*SAHBins::numBins);
-          bin = max(0,min(SAHBins::numBins-1,bin));
+          bin = int(rel*(int)SAHBins::numBins);
+          bin = max(0,min((int)SAHBins::numBins-1,bin));
           // printf("prim %i in node %i, pos %f %f %f in cent %f %f %f - %f %f %f; dim %i: rel %f bin %i\n",
           //        primID,nodeID,
           //        primBox.lower.x,
@@ -498,15 +498,18 @@ namespace cuBQL {
       size_t     temp_storage_bytes = 0;
       PrimState *sortedPrimStates;
       _ALLOC(sortedPrimStates,numPrims,s,memResource);
+      auto rc =
       cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
       _ALLOC(d_temp_storage,temp_storage_bytes,s,memResource);
+      rc =
       cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
+      rc = rc; // ignore 'unused' warning
       CUBQL_CUDA_CALL(StreamSynchronize(s));
       _FREE(d_temp_storage,s,memResource);
       // ==================================================================

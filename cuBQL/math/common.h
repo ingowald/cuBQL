@@ -33,10 +33,13 @@
 #include <algorithm>
 #include <sstream>
 #ifdef __GNUC__
-#include <execinfo.h>
-#include <sys/time.h>
+# include <execinfo.h>
+# include <sys/time.h>
 #endif
-#ifdef __CUDACC__
+#if defined(__HIPCC__)
+#  include <hip/driver_types.h>
+#  include <hip/hip_runtime.h>
+#elif defined(__CUDACC__)
 #  include <cuda_runtime.h>
 #endif
 
@@ -85,6 +88,9 @@
 #endif
 
 #if defined(__CUDA_ARCH__)
+# define __cubql_device   __device__
+# define __cubql_host     __host__
+#elif defined(__HIP_ARCH__)
 # define __cubql_device   __device__
 # define __cubql_host     __host__
 #else
@@ -300,7 +306,7 @@ namespace cuBQL {
 
 
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 
 #define CUBQL_RAISE(MSG) ::cuBQL::detail::cubqlRaise_impl(MSG);
 

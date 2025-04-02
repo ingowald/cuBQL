@@ -18,7 +18,11 @@
 #pragma once
 
 #include "cuBQL/bvh.h"
+#ifdef __HIPCC__
+#include <hipcub/hipcub.hpp>
+#else
 #include <cub/cub.cuh>
+#endif
 #include <float.h>
 #include <limits.h>
 

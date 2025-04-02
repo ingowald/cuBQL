@@ -39,7 +39,7 @@ namespace cuBQL {
     if (numBoxes == 0) return;
 
     int devID;
-    cudaGetDevice(&devID);
+    CUBQL_CUDA_CALL(GetDevice(&devID));
     
     if (buildConfig.buildMethod == BuildConfig::SAH) {
       if (buildConfig.makeLeafThreshold == 0)

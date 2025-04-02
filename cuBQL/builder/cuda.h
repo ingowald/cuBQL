@@ -16,7 +16,11 @@
 
 #pragma once
 
+#ifdef __HIPCC__
+# include <hip/hip_runtime.h>
+#else
 # include <cuda_runtime_api.h>
+#endif
 # include "cuBQL/math/box.h"
 # include <map>
 
@@ -37,12 +41,12 @@ namespace cuBQL {
   struct ManagedMemMemoryResource : public GpuMemoryResource {
     cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override
     {
-      cudaStreamSynchronize(s);
+      CUBQL_CUDA_CALL(StreamSynchronize(s));
       return cudaMallocManaged(ptr,size);
     }
     cudaError_t free(void* ptr, cudaStream_t s) override
     {
-      cudaStreamSynchronize(s);
+      CUBQL_CUDA_CALL(StreamSynchronize(s));
       return cudaFree(ptr);
     }
   };
@@ -229,7 +233,7 @@ namespace cuBQL {
 
 }
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 # ifdef CUBQL_GPU_BUILDER_IMPLEMENTATION
 #  include "cuBQL/builder/cuda/gpu_builder.h"  
 #  include "cuBQL/builder/cuda/sm_builder.h"  
