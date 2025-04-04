@@ -173,7 +173,7 @@ namespace cuBQL {
 
       auto &sah = sahBins[nodeID-sahNodeBegin];
       box3f centBounds = nodes[nodeID].openBranch.centBounds.make_box();
-#pragma unroll(3)
+#pragma unroll 3 
       for (int d=0;d<3;d++) {
         int bin = 0;
         float lo = centBounds.get_lower(d);
@@ -315,8 +315,8 @@ namespace cuBQL {
       float rel
         = (prim_d - lo)
         / (hi - lo + 1e-20f);
-      int prim_bin = int(rel*SAHBins::numBins);
-      prim_bin = max(0,min(SAHBins::numBins-1,prim_bin));
+      int prim_bin = int(rel*(int)SAHBins::numBins);
+      prim_bin = max(0,min((int)SAHBins::numBins-1,prim_bin));
       
       int side = (prim_bin >= open.bin);
       // printf("updateprim %i node %i state %i dim %i bin %i -> prim bin %i -> side %i\n",

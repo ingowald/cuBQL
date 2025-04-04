@@ -87,10 +87,10 @@
 #endif
 #endif
 
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDACC__)
 # define __cubql_device   __device__
 # define __cubql_host     __host__
-#elif defined(__HIP_ARCH__)
+#elif defined(__HIPCC__)
 # define __cubql_device   __device__
 # define __cubql_host     __host__
 #else

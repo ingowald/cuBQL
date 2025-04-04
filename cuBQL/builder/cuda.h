@@ -34,20 +34,20 @@ namespace cuBQL {
       etc. All memory allocatoins done during construction will use
       the memory resource passed to the respective build function. */
   struct GpuMemoryResource {
-    virtual cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) = 0;
-    virtual cudaError_t free(void* ptr, cudaStream_t s) = 0;
+    virtual void malloc(void** ptr, size_t size, cudaStream_t s) = 0;
+    virtual void free(void* ptr, cudaStream_t s) = 0;
   };
   
   struct ManagedMemMemoryResource : public GpuMemoryResource {
-    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override
+    void malloc(void** ptr, size_t size, cudaStream_t s) override
     {
       CUBQL_CUDA_CALL(StreamSynchronize(s));
-      return cudaMallocManaged(ptr,size);
+      CUBQL_CUDA_CALL(MallocManaged(ptr,size));
     }
-    cudaError_t free(void* ptr, cudaStream_t s) override
+    void free(void* ptr, cudaStream_t s) override
     {
       CUBQL_CUDA_CALL(StreamSynchronize(s));
-      return cudaFree(ptr);
+      CUBQL_CUDA_CALL(Free(ptr));
     }
   };
 
@@ -58,17 +58,24 @@ namespace cuBQL {
   struct DeviceMemoryResource final : GpuMemoryResource {
     DeviceMemoryResource()
     {}
-    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override {
-      return cudaMalloc(ptr, size);
+    void malloc(void** ptr, size_t size, cudaStream_t s) override {
+      CUBQL_CUDA_CALL(Malloc(ptr, size));
     }
-    cudaError_t free(void* ptr, cudaStream_t s) override
+    void free(void* ptr, cudaStream_t s) override
     {
-      return cudaFree(ptr);
+      CUBQL_CUDA_CALL(Free(ptr));
     }
   };
   
 #if CUDART_VERSION >= 11020
-  /* Allocator that uses cudaMallocAsync to allocate memory. This can be much faster than cudaMalloc because it doesn't require a device sync for each malloc; but .. CAREFUL: to get memory to be allocated on a given GPU it is NOT sufficient to just do a cudaSetDevice() to the given GPU - async memory gets allocated on the GPU to which the given stream passed to the builder is associated. If you pass the default stream 0, your mallocs will always happen on the first device! */
+  /* Allocator that uses cudaMallocAsync to allocate memory. This can
+     be much faster than cudaMalloc because it doesn't require a
+     device sync for each malloc; but .. CAREFUL: to get memory to be
+     allocated on a given GPU it is NOT sufficient to just do a
+     cudaSetDevice() to the given GPU - async memory gets allocated on
+     the GPU to which the given stream passed to the builder is
+     associated. If you pass the default stream 0, your mallocs will
+     always happen on the first device! */
   struct AsyncGpuMemoryResource final : GpuMemoryResource {
     AsyncGpuMemoryResource(int devID)
     {
@@ -84,17 +91,17 @@ namespace cuBQL {
         memPoolInitialized = true;;
       }
     }
-    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override {
+    void malloc(void** ptr, size_t size, cudaStream_t s) override {
 #ifndef NDEBUG
       if (numDevices > 1 && s == 0)
         std::cerr << "@cuBQL: warning; async memory allocator used with default stream."
                   << std::endl;
 #endif
-      return cudaMallocAsync(ptr, size, s);
+      CUBQL_CUDA_CALL(MallocAsync(ptr, size, s));
     }
-    cudaError_t free(void* ptr, cudaStream_t s) override
+    void free(void* ptr, cudaStream_t s) override
     {
-      return cudaFreeAsync(ptr, s);
+      CUBQL_CUDA_CALL(FreeAsync(ptr, s));
     }
     int numDevices = 0;
   };

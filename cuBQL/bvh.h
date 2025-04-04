@@ -151,16 +151,10 @@ namespace cuBQL {
   typedef BinaryBVH<float,2> bvh_float2;
   typedef BinaryBVH<float,3> bvh_float3;
   typedef BinaryBVH<float,4> bvh_float4;
-  // using bvh_float2 = BinaryBVH<float,2>;
-  // using bvh_float3 = BinaryBVH<float,3>;
-  // using bvh_float4 = BinaryBVH<float,4>;
 #endif
   
 } // ::cuBQL
 
-#ifdef __CUDACC__
-#include "cuBQL/builder/cuda.h"
-#endif
 
 
   

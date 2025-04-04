@@ -203,7 +203,7 @@ namespace cuBQL {
 
       auto &elh = elhBins[nodeID-elhNodeBegin];
       box_t<T,D> centBounds = nodes[nodeID].openBranch.centBounds.make_box();
-#pragma unroll(D)
+#pragma unroll D
       for (int d=0;d<D;d++) {
         int bin = 0;
         float lo = centBounds.get_lower(d);
@@ -347,7 +347,7 @@ namespace cuBQL {
       float rel
         = (prim_d - lo)
         / (hi - lo);
-      int prim_bin = int(rel*ELHBins<T,D>::numBins);
+      int prim_bin = int(rel*(int)ELHBins<T,D>::numBins);
       prim_bin = max(0,min(ELHBins<T,D>::numBins-1,prim_bin));
       
       int side = (prim_bin >= open.bin);
