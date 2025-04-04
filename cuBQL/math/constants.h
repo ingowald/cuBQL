@@ -18,7 +18,7 @@
 
 #include <limits>
 #include <limits.h>
-#ifdef __CUDACC__
+#if defined(__CUDACC__) && !defined(CUDART_INF_F)
 #include <math_constants.h>
 #endif
 
