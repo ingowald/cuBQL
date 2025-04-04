@@ -28,11 +28,11 @@ namespace cuBQL {
 
   // ------------------------------------------------------------------
   /*! defines a 'memory resource' that can be used for allocating gpu
-      memory; this allows the user to switch between usign
-      cudaMallocAsync (where avialable) vs regular cudaMalloc (where
-      not), or to use their own memory pool, to use managed memory,
-      etc. All memory allocatoins done during construction will use
-      the memory resource passed to the respective build function. */
+    memory; this allows the user to switch between usign
+    cudaMallocAsync (where avialable) vs regular cudaMalloc (where
+    not), or to use their own memory pool, to use managed memory,
+    etc. All memory allocatoins done during construction will use
+    the memory resource passed to the respective build function. */
   struct GpuMemoryResource {
     virtual void malloc(void** ptr, size_t size, cudaStream_t s) = 0;
     virtual void free(void* ptr, cudaStream_t s) = 0;
@@ -52,9 +52,9 @@ namespace cuBQL {
   };
 
   /*! allocator that uses regular cudaMalloc to allocate memory. can
-      be a bit slower than using aync mallocs, but in case of
-      multi-gpu system is easier to control which device the memory
-      gets allocated on */
+    be a bit slower than using aync mallocs, but in case of
+    multi-gpu system is easier to control which device the memory
+    gets allocated on */
   struct DeviceMemoryResource final : GpuMemoryResource {
     DeviceMemoryResource()
     {}
@@ -223,8 +223,8 @@ namespace cuBQL {
     cuBQL::cuda::free(..) */
   template<typename T, int D>
   inline void free(BinaryBVH<T,D> &bvh,
-            cudaStream_t      s=0,
-            GpuMemoryResource& memResource=defaultGpuMemResource())
+                   cudaStream_t      s=0,
+                   GpuMemoryResource& memResource=defaultGpuMemResource())
   { cuda::free(bvh,s,memResource); }
 
   /*! frees the bvh.nodes[] and bvh.primIDs[] memory allocated when
@@ -234,8 +234,8 @@ namespace cuBQL {
     cuBQL::cuda::free(..) */
   template<typename T, int D, int N>
   inline void free(WideBVH<T,D,N> &bvh,
-            cudaStream_t      s=0,
-            GpuMemoryResource& memResource=defaultGpuMemResource())
+                   cudaStream_t      s=0,
+                   GpuMemoryResource& memResource=defaultGpuMemResource())
   { cuda::free(bvh,s,memResource); }
 
 }

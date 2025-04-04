@@ -18,18 +18,17 @@
 
 #include "cuBQL/builder/cuda/sm_builder.h"
 
-# ifdef CUBQL_GPU_BUILDER_IMPLEMENTATION
 namespace cuBQL {
   namespace sahBuilder_impl {
-    using gpuBuilder_impl::AtomicBox;
-    using gpuBuilder_impl::PrimState;
-    using gpuBuilder_impl::NodeState;
-    using gpuBuilder_impl::BuildState;
-    using gpuBuilder_impl::OPEN_NODE;
-    using gpuBuilder_impl::DONE_NODE;
-    using gpuBuilder_impl::OPEN_BRANCH;
-    using gpuBuilder_impl::_ALLOC;
-    using gpuBuilder_impl::_FREE;
+    using ::cuBQL::gpuBuilder_impl::AtomicBox;
+    using ::cuBQL::gpuBuilder_impl::PrimState;
+    using ::cuBQL::gpuBuilder_impl::NodeState;
+    using ::cuBQL::gpuBuilder_impl::BuildState;
+    using ::cuBQL::gpuBuilder_impl::OPEN_NODE;
+    using ::cuBQL::gpuBuilder_impl::DONE_NODE;
+    using ::cuBQL::gpuBuilder_impl::OPEN_BRANCH;
+    using ::cuBQL::gpuBuilder_impl::_ALLOC;
+    using ::cuBQL::gpuBuilder_impl::_FREE;
     
     struct CUBQL_ALIGN(16) TempNode {
       union {
@@ -553,5 +552,4 @@ namespace cuBQL {
     }
   } // ::cuBQL::cuda
 } // ::cuBQL
-#endif
 

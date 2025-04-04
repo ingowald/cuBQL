@@ -18,11 +18,11 @@
 #pragma once
 
 #include "cuBQL/bvh.h"
-#include "cuBQL/builder/cuda.h"
+// #include "cuBQL/builder/cuda.h"
 #ifdef __HIPCC__
-#include <hipcub/hipcub.hpp>
+# include <hipcub/hipcub.hpp>
 #else
-#include <cub/cub.cuh>
+# include <cub/cub.cuh>
 #endif
 #include <float.h>
 #include <limits.h>
@@ -31,7 +31,8 @@ namespace cuBQL {
   namespace gpuBuilder_impl {
 
     template<typename T, typename count_t>
-    inline void _ALLOC(T *&ptr, count_t count, cudaStream_t s, GpuMemoryResource &mem_resource)
+    inline void _ALLOC(T *&ptr, count_t count, cudaStream_t s,
+                       GpuMemoryResource &mem_resource)
     { mem_resource.malloc((void**)&ptr,count*sizeof(T),s); }
     
     template<typename T>

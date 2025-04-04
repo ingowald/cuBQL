@@ -69,16 +69,6 @@ namespace cuBQL {
     gpuBuilder_impl::refit(bvh,boxes,s,memResource);
   }
 
-  // template<typename T, int D>
-  // void free(BinaryBVH<T,D>    &bvh,
-  //           cudaStream_t       s,
-  //           GpuMemoryResource &memResource)
-  // {
-  //   gpuBuilder_impl::_FREE(bvh.primIDs,s,memResource);
-  //   gpuBuilder_impl::_FREE(bvh.nodes,s,memResource);
-  //   CUBQL_CUDA_CALL(StreamSynchronize(s));
-  //   bvh.primIDs = 0;
-  // }
   namespace cuda {
     template<typename T, int D>
     void free(BinaryBVH<T,D>    &bvh,
