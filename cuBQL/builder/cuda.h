@@ -81,7 +81,7 @@ namespace cuBQL {
     {
       static bool memPoolInitialized = false;
       if (!memPoolInitialized) {
-        cudaGetDeviceCount(&numDevices);
+        CUBQL_CUDA_CALL(GetDeviceCount(&numDevices));
         for (int i=0;i<numDevices;i++) {
           cudaMemPool_t mempool;
           cudaDeviceGetDefaultMemPool(&mempool, devID);
@@ -112,7 +112,7 @@ namespace cuBQL {
   inline GpuMemoryResource &defaultGpuMemResource() {
     static std::map<int,AsyncGpuMemoryResource*> asyncMemPerDevice;
     int devID;
-    cudaGetDevice(&devID);
+    CUBQL_CUDA_CALL(GetDevice(&devID));
     if (asyncMemPerDevice[devID] == nullptr)
       asyncMemPerDevice[devID] = new AsyncGpuMemoryResource(devID);
     return *asyncMemPerDevice[devID];
