@@ -32,8 +32,9 @@
 
 // cuBQL:
 #define CUBQL_GPU_BUILDER_IMPLEMENTATION 1
+#define CUBQL_TRIANGLE_CPAT_IMPLEMENTATION 1
 #include "cuBQL/bvh.h"
-#include "cuBQL/queries/triangles/findClosest.h"
+#include "cuBQL/queries/triangles/closestPointOnAnyTriangle/cpat.h"
 #include "samples/common/loadOBJ.h"
 
 // std:
@@ -88,23 +89,22 @@ void runQueries(bvh3f           trianglesBVH,
   
   vec3f queryPoint = worldBounds.lerp(vec3f(t));
   
-  cuBQL::triangles::FCPResult result;
-  result.clear(INFINITY);
+  cuBQL::triangles::CPAT cpat;
 
-  cuBQL::triangles::findClosest(result,
-                                trianglesBVH,triangles,
-                                queryPoint);
+  cpat.runQuery(triangles,
+                trianglesBVH,
+                queryPoint);
 
   printf("[%i] closest surface point to point (%f %f %f) is on triangle %i, at (%f %f %f), and %f units away\n",
          tid,
          queryPoint.x,
          queryPoint.y,
          queryPoint.z,
-         result.primID,
-         result.P.x,
-         result.P.y,
-         result.P.z,
-         sqrtf(result.sqrDist));
+         cpat.triangleIdx,
+         cpat.P.x,
+         cpat.P.y,
+         cpat.P.z,
+         sqrtf(cpat.sqrDist));
 }
 
 

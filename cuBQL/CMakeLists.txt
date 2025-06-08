@@ -31,8 +31,10 @@ target_sources(cuBQL INTERFACE
   traversal/shrinkingRadiusQuery.h
   traversal/fixedBoxQuery.h
   # host side builder(s)
+  builder/cpu.h
   builder/cpu/spatialMedian.h
   # cuda side builder(s)
+  builder/cuda.h
   builder/cuda/builder_common.h
   builder/cuda/sm_builder.h
   builder/cuda/sah_builder.h
@@ -61,7 +63,7 @@ set_target_properties(cuBQL
 # the specific builders for the given type and device
 function(add_specific_instantiation device suffix T D)
   add_library(cuBQL_${device}_${T}${D} SHARED EXCLUDE_FROM_ALL
-    impl/instantiate_builders.${suffix}
+    builder/${device}/instantiate_builders.${suffix}
     )
   if (${device} STREQUAL "cuda")
     target_compile_definitions(cuBQL_${device}_${T}${D}
@@ -84,7 +86,7 @@ function(add_specific_instantiation device suffix T D)
     )
 
   add_library(cuBQL_${device}_${T}${D}_static STATIC EXCLUDE_FROM_ALL
-    impl/instantiate_builders.${suffix}
+    builder/${device}/instantiate_builders.${suffix}
     )
   if (${device} STREQUAL "cuda")
     target_compile_definitions(cuBQL_${device}_${T}${D}_static

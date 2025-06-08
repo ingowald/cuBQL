@@ -1,21 +1,8 @@
-// ======================================================================== //
-// Copyright 2024-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2025 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 /*! \file cuBQL/triangles/Triangle.h Defines a generic triangle type and
-    some operations thereon, that various queries can then build on */
+  some operations thereon, that various queries can then build on */
 
 #pragma once
 
@@ -23,7 +10,16 @@
 #include "cuBQL/math/box.h"
 
 namespace cuBQL {
+
+  // =============================================================================
+  // *** INTERFACE ***
+  // =============================================================================
   
+  /*! a simple triangle consisting of three vertices. In order to not
+    overload this class with too many functions the actual
+    operations on triangles - such as intersectin with a ray,
+    computing distance to a point, etc - will be defined in the
+    respective queries */
   struct Triangle {
     /*! returns an axis aligned bounding box enclosing this triangle */
     inline __cubql_both box3f bounds() const;
@@ -32,6 +28,40 @@ namespace cuBQL {
     vec3f a, b, c;
   };
 
+  /*! a typical triangle mesh, with array of vertices and
+      indices. This class will NOT do any allocation/deallocation, not
+      use smart pointers - it's just a 'view' on what whoever else
+      might own and manage, and may thus be used exactly the same on
+      device as well as on host. */
+  struct TriangleMesh {
+    inline __cubql_both Triangle getTriangle(int i) const;
+    
+    /*! pointer to array of vertices; must be in same memory space as
+        the operations performed on it (eg, if passed to a gpu builder
+        it has to be gepu memory */
+    vec3f *vertices;
+    
+    /*! pointer to array of vertices; must be in same memory space as
+        the operations performed on it (eg, if passed to a gpu builder
+        it has to be gepu memory */
+    vec3i *indices;
+
+    int numVertices;
+    int numIndices;
+  };
+
+  // =============================================================================
+  // *** IMPLEMENTATION ***
+  // =============================================================================
+
+  // ---------------------- TriangleMesh ----------------------
+  inline __cubql_both Triangle TriangleMesh::getTriangle(int i) const
+  {
+    vec3i index = indices[i];
+    return { vertices[index.x],vertices[index.y],vertices[index.z] };
+  }
+  
+  // ---------------------- Triangle ----------------------
   inline __cubql_both box3f Triangle::bounds() const
   { return box3f().including(a).including(b).including(c); }
 
@@ -43,7 +73,6 @@ namespace cuBQL {
     if (u+v >= 1.f) { u = 1.f-u; v = 1.f-v; }
     return (1.f-u-v)*a + u * b + v * c;
   }
-    
 
-} // cuBQL
+} // ::cuBQL
 

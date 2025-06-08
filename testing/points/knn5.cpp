@@ -1,5 +1,5 @@
 // ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
+// Copyright 2023-2025 Ingo Wald                                            //
 //                                                                          //
 // Licensed under the Apache License, Version 2.0 (the "License");          //
 // you may not use this file except in compliance with the License.         //
@@ -15,7 +15,7 @@
 // ======================================================================== //
 
 #include "knn5.h"
-#include "cuBQL/builder/host.h"
+#include "cuBQL/builder/cpu.h"
 
 namespace testing {
 

@@ -17,6 +17,10 @@
 #pragma once
 
 #include "cuBQL/math/common.h"
+#ifdef __CUDACC__
+#include <cuda/std/limits>
+#endif
+#include <limits>
 
 namespace cuBQL {
   
@@ -28,6 +32,12 @@ namespace cuBQL {
 #else
   using std::min;
   using std::max;
+#endif
+
+#ifdef __CUDA_ARCH__
+# define CUBQL_INF ::cuda::std::numeric_limits<float>::infinity()
+#else
+# define CUBQL_INF std::numeric_limits<float>::infinity()
 #endif
   
   template<int N> struct log_of;

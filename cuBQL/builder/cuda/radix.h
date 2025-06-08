@@ -27,7 +27,7 @@ namespace cuBQL {
     template<typename T, int D> struct Quantizer;
 
     template<int D> struct numMortonBits;
-#if 1
+#if 0
     template<> struct numMortonBits<2> { enum { value = 31 }; };
     template<> struct numMortonBits<3> { enum { value = 21 }; };
     template<> struct numMortonBits<4> { enum { value = 15 }; };

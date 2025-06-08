@@ -1,5 +1,5 @@
 // ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
+// Copyright 2023-2025 Ingo Wald                                            //
 //                                                                          //
 // Licensed under the Apache License, Version 2.0 (the "License");          //
 // you may not use this file except in compliance with the License.         //
@@ -17,7 +17,6 @@
 #pragma once
 
 #include "cuBQL/bvh.h"
-#include "cuBQL/builder/common.h"
 #if CUBQL_CPU_BUILDER_IMPLEMENTATION
 #include <vector>
 #endif

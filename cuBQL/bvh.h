@@ -159,8 +159,10 @@ namespace cuBQL {
 } // ::cuBQL
 
 #ifdef __CUDACC__
-#include "cuBQL/builder/cuda.h"
+# include "cuBQL/builder/cuda.h"
 #endif
+# include "cuBQL/builder/cpu.h"
+
 
 
   
