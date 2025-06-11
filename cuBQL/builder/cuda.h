@@ -94,7 +94,7 @@ namespace cuBQL {
                     be in device memory */
                   const box_t<T,D> *boxes,
                   uint32_t          numBoxes,
-                  BuildConfig       buildConfig,
+                  BuildConfig       buildConfig=BuildConfig(),
                   cudaStream_t      s=0,
                   GpuMemoryResource &memResource=defaultGpuMemResource());
   
@@ -111,7 +111,7 @@ namespace cuBQL {
                     be in device memory */
                   const box_t<T,D>  *boxes,
                   uint32_t          numBoxes,
-                  BuildConfig       buildConfig,
+                  BuildConfig       buildConfig=BuildConfig(),
                   cudaStream_t      s=0,
                   GpuMemoryResource& memResource=defaultGpuMemResource());
 

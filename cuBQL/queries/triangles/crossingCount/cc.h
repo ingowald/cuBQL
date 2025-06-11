@@ -29,15 +29,15 @@
 
  */
 
-
 #pragma once
 
 #include "cuBQL/traversal/rayQueries.h"
 // the kind of model data we operate on
 #include "cuBQL/queries/triangles/Triangle.h"
+#include "cuBQL/queries/triangles/RayTriangleIntersection.h"
 
-/*! \namespace cuq - *cu*BQL based geometric *q*ueries */
-namespace cuq {
+/*! \namespace cuBQL - *cu*BQL based geometric *q*ueries */
+namespace cuBQL {
   namespace triangles {
 
     // =============================================================================
@@ -108,14 +108,7 @@ namespace cuq {
     // *** IMPLEMENTATION ***
     // =============================================================================
 
-    /* this ifdef allows an application to use this kernel in
-       'header-only' form, without having to link the actual
-       libcuBQLbl_triangles_crossingcount. To do so, simply define
-       CUBQL_TRIANGLES_CROSSINGCOUNT_IMPLEMENTATION to 1 before
-       including this header file (but make sure to do that in only
-       one compilation unit */
-#if CUBQL_TRIANGLES_CROSSINGCOUNT_IMPLEMENTATION
-      /*! runs one complete crossing-count query; will compute
+    /*! runs one complete crossing-count query; will compute
         crossing count for every triangle whose bounding box
         intersects the given ray
 
@@ -134,17 +127,17 @@ namespace cuq {
         *this = {};
         const Ray ray = queryRay.makeRay();
         auto perPrimCode = [getTriangle,this,ray](uint32_t triangleIdx) {
-          const Triangle tri = getTriangle(triangleIdx);
+          const Triangle triangle = getTriangle(triangleIdx);
           RayTriangleIntersection isec;
           if (isec.compute(ray,triangle)) {
             this->totalCount++;
             this->crossingCount
-              += (dot(isec.normal,ray.direction < 0.f) ? +1 : -1);
+              += (dot(isec.N,ray.direction) < 0.f ? +1 : -1);
           }
+          return CUBQL_CONTINUE_TRAVERSAL;
         };
-        cuBQL::rayQuery::forEachPrim(perPrimCode,bvh);
+        cuBQL::rayQuery::forEachPrim(perPrimCode,bvh,queryRay);
       }
       
-#endif
   } // ::cuBQL::triangles
 } // ::cuBQL

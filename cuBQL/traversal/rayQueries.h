@@ -130,14 +130,14 @@ namespace cuBQL {
                      cuBQL::bvh3f bvh,
                      AxisAlignedRay<axis,direction> ray)
     {
-      box3f rayAsBox = { ray.origin,ray.origin };
-      if (direction == +1) {
-        rayAsBox.lower = rayAsBox.lower[axis] + ray.tmin;
-        rayAsBox.upper = rayAsBox.upper[axis] + ray.tmax;
-      } else {
-        rayAsBox.upper = rayAsBox.upper[axis] - ray.tmin;
-        rayAsBox.lower = rayAsBox.lower[axis] - ray.tmax;
-      }
+      vec3f D {
+        (axis == 0) ? (axis > 0 ? +1.f : -1.f) : 0.f,
+        (axis == 1) ? (axis > 0 ? +1.f : -1.f) : 0.f,
+        (axis == 2) ? (axis > 0 ? +1.f : -1.f) : 0.f
+      };
+      vec3f A = ray.origin;
+      vec3f B = ray.origin + ray.length * D;
+      box3f rayAsBox { min(A,B), max(A,B) };
       cuBQL::fixedBoxQuery::forEachLeaf(lambdaToExecuteForEachCandidate,bvh,rayAsBox);
     }
     

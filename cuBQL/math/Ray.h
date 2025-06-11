@@ -8,6 +8,10 @@
 
 namespace cuBQL {
 
+  // =============================================================================
+  // *** INTERFACE ***
+  // =============================================================================
+  
   struct Ray {
     vec3f origin;
     float tmin;
@@ -19,5 +23,23 @@ namespace cuBQL {
   struct AxisAlignedRay {
     vec3f origin;
     float length;
+
+    inline __cubql_both Ray makeRay() const;
   };
+
+  // =============================================================================
+  // *** IMPLEMENTATION ***
+  // =============================================================================
+
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */direction>
+  inline __cubql_both Ray AxisAlignedRay<axis,direction>::makeRay() const
+  {
+    vec3f D {
+      (axis == 0) ? (axis > 0 ? +1.f : -1.f) : 0.f,
+      (axis == 1) ? (axis > 0 ? +1.f : -1.f) : 0.f,
+      (axis == 2) ? (axis > 0 ? +1.f : -1.f) : 0.f
+    };
+    return { origin, 0.f, origin + D, length };
+  }
+  
 }
