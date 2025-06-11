@@ -88,20 +88,22 @@ namespace cuBQL {
         choose however it wants to store the triangles as long as it
         can return one on request..
       */
-      template<int axis, int direction, typename GetTriangleLambda>
+      template<int axis, int sign, typename GetTriangleLambda>
       inline __cubql_both
       void runQuery(const GetTriangleLambda  &getTriangle/* Triangle(*)(int) */,
                     const cuBQL::bvh3f        bvh,
-                    const cuBQL::AxisAlignedRay<axis,direction> queryRay);
+                    const cuBQL::AxisAlignedRay<axis,sign> queryRay,
+                    bool dbg=false);
       
       /*! runs one complete crossing-count query; will compute
         crossing count for every triangle whose bounding box
           intersects the given ray */
-      template<int axis, int direction>
+      template<int axis, int sign>
       inline __cubql_both
       void runQuery(const cuBQL::TriangleMesh mesh,
                     const cuBQL::bvh3f        bvh,
-                    const cuBQL::AxisAlignedRay<axis,direction> queryRay);
+                    const cuBQL::AxisAlignedRay<axis,sign> queryRay,
+                    bool dbg=false);
     };
 
     // =============================================================================
@@ -117,26 +119,38 @@ namespace cuBQL {
         choose however it wants to store the triangles as long as it
         can return one on request..
       */
-      template<int axis, int direction, typename GetTriangleLambda>
+      template<int axis, int sign, typename GetTriangleLambda>
       inline __cubql_both
       void CrossingCount::runQuery(const GetTriangleLambda  &getTriangle,
                                    const cuBQL::bvh3f        bvh,
-                                   const cuBQL::AxisAlignedRay<axis,direction> queryRay)
+                                   const cuBQL::AxisAlignedRay<axis,sign> queryRay,
+                                   bool dbg)
       {
         // reset to defaults
-        *this = {};
+        *this = {0,0};
         const Ray ray = queryRay.makeRay();
-        auto perPrimCode = [getTriangle,this,ray](uint32_t triangleIdx) {
+        // if (dbg) dout << "query unpacked ray " << ray << cuBQL::endl;
+        auto perPrimCode = [getTriangle,this,ray,dbg](uint32_t triangleIdx)->int {
           const Triangle triangle = getTriangle(triangleIdx);
+          // if (dbg) {
+          //   dout << "Triangle " << triangleIdx << endl;
+          //   dout << " " << triangle.a << endl;
+          //   dout << " " << triangle.b << endl;
+          //   dout << " " << triangle.c << endl;
+          // }
           RayTriangleIntersection isec;
           if (isec.compute(ray,triangle)) {
             this->totalCount++;
             this->crossingCount
-              += (dot(isec.N,ray.direction) < 0.f ? +1 : -1);
+              += (dot(isec.N,ray.direction) > 0.f ? +1 : -1);
+            // if (dbg)
+            //   dout << "HIT " << this->totalCount << " " << this->crossingCount << endl;
+          // } else {
+          //   if (dbg) dout << "MISS" << endl;
           }
           return CUBQL_CONTINUE_TRAVERSAL;
         };
-        cuBQL::rayQuery::forEachPrim(perPrimCode,bvh,queryRay);
+        cuBQL::fixedRayQuery::forEachPrim(perPrimCode,bvh,queryRay,dbg);
       }
       
   } // ::cuBQL::triangles

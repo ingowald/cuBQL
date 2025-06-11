@@ -50,7 +50,7 @@ namespace cuBQL {
     N = cross(e1,e2);
     if (N == vec3f(0.f)) return false;
     
-    N = normalize(N);
+    // N = normalize(N);
     if (fabsf(dot(ray.direction,N)) < 1e-12f) return false;
     
     // P = o+td

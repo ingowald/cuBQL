@@ -19,27 +19,49 @@ namespace cuBQL {
     float tmax;
   };
 
-  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */direction>
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
   struct AxisAlignedRay {
     vec3f origin;
     float length;
 
-    inline __cubql_both Ray makeRay() const;
+    inline __cubql_both vec3f direction() const;
+    inline __cubql_both Ray   makeRay() const;
   };
 
   // =============================================================================
   // *** IMPLEMENTATION ***
   // =============================================================================
 
-  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */direction>
-  inline __cubql_both Ray AxisAlignedRay<axis,direction>::makeRay() const
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
+  inline __cubql_both vec3f AxisAlignedRay<axis,sign>::direction() const
   {
-    vec3f D {
-      (axis == 0) ? (axis > 0 ? +1.f : -1.f) : 0.f,
-      (axis == 1) ? (axis > 0 ? +1.f : -1.f) : 0.f,
-      (axis == 2) ? (axis > 0 ? +1.f : -1.f) : 0.f
+    return {
+      (axis == 0) ? (sign > 0 ? +1.f : -1.f) : 0.f,
+      (axis == 1) ? (sign > 0 ? +1.f : -1.f) : 0.f,
+      (axis == 2) ? (sign > 0 ? +1.f : -1.f) : 0.f
     };
-    return { origin, 0.f, origin + D, length };
   }
   
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
+  inline __cubql_both Ray AxisAlignedRay<axis,sign>::makeRay() const
+  {
+    return { origin, 0.f, direction(), length };
+  }
+
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
+  inline __cubql_both dbgout operator<<(dbgout o, AxisAlignedRay<axis,sign> ray)
+  {
+    o << "AARay<"<<axis<<","<<sign<<">("<<ray.origin<<","<<ray.length<<")";
+    return o;
+  }
+
+  inline __cubql_both dbgout operator<<(dbgout o, Ray ray)
+  {
+    o << "Ray{"<<ray.origin<<"+["<<ray.tmin<<","<<ray.tmax<<"]*"<<ray.direction<<"}";
+    return o;
+  }
+
 }
+
+
+

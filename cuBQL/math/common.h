@@ -384,3 +384,28 @@ namespace cuBQL {
   }
 #endif
 
+
+
+namespace cuBQL {
+  struct dbgout {
+    static constexpr const char *const endl = "\n";
+  };
+  static constexpr const char *const endl = "\n";
+  static constexpr dbgout dout = {};
+  inline __cubql_both dbgout operator<<(dbgout o, const char *s)
+  { printf("%s",s); return o; }
+  
+  inline __cubql_both dbgout operator<<(dbgout o, int32_t i)
+  { printf("%i",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, uint32_t i)
+  { printf("%i",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, float f)
+  { printf("%f",f); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
+  { printf("%li",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
+  { printf("%li",i); return o; }
+  
+};
+
+

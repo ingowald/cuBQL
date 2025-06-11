@@ -9,7 +9,7 @@
 #include "cuBQL/traversal/fixedBoxQuery.h"
 
 namespace cuBQL {
-  namespace rayQuery {
+  namespace fixedRayQuery {
 
     // ******************************************************************
     // INTERFACE
@@ -18,163 +18,96 @@ namespace cuBQL {
     
     template<typename Lambda>
     inline __cubql_both
-    void forEachLeaf(/*! lambda that gets called for each BVH leaf
-                       that may may contain any new result(s) within
-                       the current max query radius. if this lamdba
-                       does find a new, better result than whatever
-                       the query had before this lambda MUST return
-                       the SQUARE of the new culling radius, returning
-                       a culling radius < 0 will immediately terminate
-                       any further traversal steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
+    void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
                      cuBQL::bvh3f bvh,
-                     cuBQL::Ray   ray);
+                     cuBQL::Ray   ray,
+                                    bool dbg);
     
     template<typename Lambda>
     inline __cubql_both
-    void forEachPrim(/*! lambda that gets called for each candidate
-                       primitive index that may contain any new result
-                       within the current max query radius. if this
-                       lamdba does find a new, better result than
-                       whatever the query had before this lambda MUST
-                       return the SQUARE of the new culling
-                       radius. Returning a culling radius < 0 will
-                       immediately terminate any future traversal
-                       steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
+    void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
                      cuBQL::bvh3f bvh,
-                     cuBQL::Ray   ray);
+                     cuBQL::Ray   ray,
+                                    bool dbg);
 
-    template<int axis, int direction, typename Lambda>
+    /*! traverse BVH with given fixed-length, axis-aligned ray, and
+      call lambda for each prim encounterd.
+
+      Traversal is UNORDERED (meaning it will NOT try to traverse
+      front-to-back) and FIXED-SHAPE (ray will not shrink during
+      traversal).
+
+      Lambda is expected to return CUBQL_{CONTINUE|TERMINATE}_TRAVERSAL 
+    */
+    template<int axis, int sign, typename Lambda>
     inline __cubql_both
-    void forEachLeaf(/*! lambda that gets called for each BVH leaf
-                       that may may contain any new result(s) within
-                       the current max query radius. if this lamdba
-                       does find a new, better result than whatever
-                       the query had before this lambda MUST return
-                       the SQUARE of the new culling radius, returning
-                       a culling radius < 0 will immediately terminate
-                       any further traversal steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
+    void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
                      cuBQL::bvh3f bvh,
-                     AxisAlignedRay<axis,direction> ray);
+                     AxisAlignedRay<axis,sign> ray,
+                                    bool dbg);
     
-    template<int axis, int direction, typename Lambda>
+    /*! traverse BVH with given fixed-length, axis-aligned ray, and
+      call lambda for each prim encounterd.
+
+      Traversal is UNORDERED (meaning it will NOT try to traverse
+      front-to-back) and FIXED-SHAPE (ray will not shrink during
+      traversal).
+
+      Lambda is expected to return CUBQL_{CONTINUE|TERMINATE}_TRAVERSAL 
+    */
+    template<int axis, int sign, typename Lambda>
     inline __cubql_both
-    void forEachPrim(/*! lambda that gets called for each candidate
-                       primitive index that may contain any new result
-                       within the current max query radius. if this
-                       lamdba does find a new, better result than
-                       whatever the query had before this lambda MUST
-                       return the SQUARE of the new culling
-                       radius. Returning a culling radius < 0 will
-                       immediately terminate any future traversal
-                       steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
+    void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
                      cuBQL::bvh3f bvh,
-                     AxisAlignedRay<axis,direction> ray);
-    
-    // ******************************************************************
-    // IMPLEMENTATION
-    // ******************************************************************
-    
-    
-    template<typename Lambda>
+                     AxisAlignedRay<axis,sign> ray,
+                                    bool dbg);
+  }
+  
+  // ******************************************************************
+  // IMPLEMENTATION
+  // ******************************************************************
+
+    template<int axis, int sign, typename Lambda>
     inline __cubql_both
-    void forEachPrim(/*! lambda that gets called for each candidate
-                       primitive index that may contain any new result
-                       within the current max query radius. if this
-                       lamdba does find a new, better result than
-                       whatever the query had before this lambda MUST
-                       return the SQUARE of the new culling
-                       radius. Returning a culling radius < 0 will
-                       immediately terminate any future traversal
-                       steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::bvh3f bvh,
-                     Ray          ray)
+    void fixedRayQuery::forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
+                                    cuBQL::bvh3f bvh,
+                                    AxisAlignedRay<axis,sign> ray,
+                                    bool dbg)
     {
-      /* the code we want to have executed for each leaf that may
-         contain candidates. we loop over each prim in a given leaf,
-         and return the minimum culling distance returned by any of
-         the per-prim lambdas */
-      auto leafCode
-        = [lambdaToExecuteForEachCandidate](const uint32_t *leafPrims,
-                                            size_t numPrims)->float
-        {
-          float leafResult = CUBQL_INF;
-          for (int i=0;i<numPrims;i++) {
-            float primResult
-              = lambdaToExecuteForEachCandidate(leafPrims[i]);
-            leafResult = min(leafResult,primResult);
-            if (leafResult < 0.f) break;
-          }
-          return leafResult;
-        };
-      forEachLeaf(leafCode,bvh,ray);
-    }
-
-
-
-    template<int axis, int direction, typename Lambda>
-    inline __cubql_both
-    void forEachLeaf(/*! lambda that gets called for each BVH leaf
-                       that may may contain any new result(s) within
-                       the current max query radius. if this lamdba
-                       does find a new, better result th {an whatever
-                       the query had before this lambda MUST return
-                       the SQUARE of the new culling radius, returning
-                       a culling radius < 0 will immediately terminate
-                       any further traversal steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::bvh3f bvh,
-                     AxisAlignedRay<axis,direction> ray)
-    {
-      vec3f D {
-        (axis == 0) ? (axis > 0 ? +1.f : -1.f) : 0.f,
-        (axis == 1) ? (axis > 0 ? +1.f : -1.f) : 0.f,
-        (axis == 2) ? (axis > 0 ? +1.f : -1.f) : 0.f
-      };
+      /* for an axis-aligned ray, we can just convert that ray to a
+         box, and traverse that instad */
       vec3f A = ray.origin;
-      vec3f B = ray.origin + ray.length * D;
+      vec3f B = ray.origin + ray.length * ray.direction();
       box3f rayAsBox { min(A,B), max(A,B) };
-      cuBQL::fixedBoxQuery::forEachLeaf(lambdaToExecuteForEachCandidate,bvh,rayAsBox);
+      if (dbg) dout << "asbox " << rayAsBox << dout.endl;
+      cuBQL::fixedBoxQuery::forEachLeaf(lambdaToExecuteForEachCandidate,bvh,rayAsBox,dbg);
     }
-    
-    template<int axis, int direction, typename Lambda>
+
+    /*! this query assumes lambads that return CUBQL_CONTINUE_TRAVERSAL
+      or CUBQL_TERMINATE_TRAVERSAL */
+    template<int axis, int sign, typename Lambda>
     inline __cubql_both
-    void forEachPrim(/*! lambda that gets called for each candidate
-                       primitive index that may contain any new result
-                       within the current max query radius. if this
-                       lamdba does find a new, better result than
-                       whatever the query had before this lambda MUST
-                       return the SQUARE of the new culling
-                       radius. Returning a culling radius < 0 will
-                       immediately terminate any future traversal
-                       steps */
-                     const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::bvh3f bvh,
-                     AxisAlignedRay<axis,direction> ray)
+    void fixedRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
+                                    cuBQL::bvh3f bvh,
+                                    AxisAlignedRay<axis,sign> ray,
+                                    bool dbg)
     {
       /* the code we want to have executed for each leaf that may
          contain candidates. we loop over each prim in a given leaf,
          and return the minimum culling distance returned by any of
          the per-prim lambdas */
       auto leafCode
-        = [lambdaToExecuteForEachCandidate](const uint32_t *leafPrims,
-                                            size_t numPrims)->float
+        = [lambdaToExecuteForEachCandidate,dbg](const uint32_t *leafPrims,
+                                            size_t numPrims)->int
         {
-          float leafResult = CUBQL_INF;
-          for (int i=0;i<numPrims;i++) {
-            float primResult
-              = lambdaToExecuteForEachCandidate(leafPrims[i]);
-            leafResult = min(leafResult,primResult);
-            if (leafResult < 0.f) break;
-          }
-          return leafResult;
+          if (dbg) dout << "fixedRayQuery::forEachPrim leaf " << numPrims << endl;
+          for (int i=0;i<numPrims;i++) 
+            if (lambdaToExecuteForEachCandidate(leafPrims[i])
+                == CUBQL_TERMINATE_TRAVERSAL)
+              return CUBQL_TERMINATE_TRAVERSAL;
+          return CUBQL_CONTINUE_TRAVERSAL;
         };
-      forEachLeaf(leafCode,bvh,ray);
+      forEachLeaf(leafCode,bvh,ray,dbg);
     }
     
-  } // ::cuBQL::rayQuery
-} // ::cuBQL
+  } // ::cuBQL

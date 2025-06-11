@@ -44,25 +44,29 @@ namespace cuBQL {
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToCallOnEachPrim,
                      const BinaryBVH<T,D> bvh,
-                     const box3f queryBox);
+                     const box3f queryBox,
+                     bool dbg=false);
   
     template<typename T, int D, typename Lambda>
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToCallOnEachPrim,
                      const BinaryBVH<T,D> bvh,
-                     const box3f queryBox);
+                     const box3f queryBox,
+                     bool dbg=false);
   
     template<typename T, int D, int W, typename Lambda>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToCallOnEachPrim,
                      const WideBVH<T,D,W> bvh,
-                     const box3f queryBox);
+                     const box3f queryBox,
+                     bool dbg=false);
   
     template<typename T, int D, int W, typename Lambda>
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToCallOnEachPrim,
                      const WideBVH<T,D,W> bvh,
-                     const box3f queryBox);
+                     const box3f queryBox,
+                     bool dbg=false);
   
 
 
@@ -75,7 +79,8 @@ namespace cuBQL {
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
                      const BinaryBVH<T,D> bvh,
-                     const box3f queryBox)
+                     const box3f queryBox,
+                     bool dbg)
     {
       struct StackEntry {
         uint32_t idx;
@@ -85,6 +90,7 @@ namespace cuBQL {
       // ------------------------------------------------------------------
       // traverse until there's nothing left to traverse:
       // ------------------------------------------------------------------
+      // if (dbg) dout << "fixedBoxQuery::traverse" << endl;
       while (true) {
 
         // ------------------------------------------------------------------
@@ -104,6 +110,14 @@ namespace cuBQL {
           bvh3f::node_t n1 = bvh.nodes[n1Idx];
           bool o0 = queryBox.overlaps(n0.bounds);
           bool o1 = queryBox.overlaps(n1.bounds);
+
+          // if (dbg) {
+          //   dout << "at node " << node.offset << endl;
+          //   dout << "w/ query box " << queryBox << endl;
+          //   dout << "  " << n0.bounds << " -> " << (int)o0 << endl;
+          //   dout << "  " << n1.bounds << " -> " << (int)o1 << endl;
+          // }
+          
           if (o0) {
             if (o1) {
               *stackPtr++ = n1.admin;
@@ -120,12 +134,16 @@ namespace cuBQL {
             }
           }
         }
-      
+
+        // if (dbg)
+        //   dout << "at leaf ofs " << (int)node.offset << " cnt " << node.count << endl;
         if (node.count != 0) {
           // we're at a valid leaf: call the lambda and see if that gave
           // us a enw, closer cull radius
           int leafResult
             = lambdaToCallOnEachLeaf(bvh.primIDs+node.offset,node.count);
+          // if (dbg)
+          //   dout << "leaf returned " << leafResult << endl;
           if (leafResult == CUBQL_TERMINATE_TRAVERSAL)
             return;
         }
@@ -133,6 +151,7 @@ namespace cuBQL {
         // pop next un-traversed node from stack, discarding any nodes
         // that are more distant than whatever query radius we now have
         // ------------------------------------------------------------------
+        // if (dbg) dout << "rem stack depth " << (stackPtr-traversalStack) << endl;
         if (stackPtr == traversalStack)
           return;
         node = *--stackPtr;
