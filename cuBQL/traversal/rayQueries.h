@@ -79,7 +79,7 @@ namespace cuBQL {
       vec3f A = ray.origin;
       vec3f B = ray.origin + ray.length * ray.direction();
       box3f rayAsBox { min(A,B), max(A,B) };
-      if (dbg) dout << "asbox " << rayAsBox << dout.endl;
+      // if (dbg) dout << "asbox " << rayAsBox << dout.endl;
       cuBQL::fixedBoxQuery::forEachLeaf(lambdaToExecuteForEachCandidate,bvh,rayAsBox,dbg);
     }
 
@@ -100,7 +100,7 @@ namespace cuBQL {
         = [lambdaToExecuteForEachCandidate,dbg](const uint32_t *leafPrims,
                                             size_t numPrims)->int
         {
-          if (dbg) dout << "fixedRayQuery::forEachPrim leaf " << numPrims << endl;
+          // if (dbg) dout << "fixedRayQuery::forEachPrim leaf " << numPrims << endl;
           for (int i=0;i<numPrims;i++) 
             if (lambdaToExecuteForEachCandidate(leafPrims[i])
                 == CUBQL_TERMINATE_TRAVERSAL)
