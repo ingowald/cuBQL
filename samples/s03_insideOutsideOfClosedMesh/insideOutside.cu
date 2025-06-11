@@ -67,12 +67,12 @@ __global__ void d_computeVolume(float   *d_result,
       vertices or edges, so we just trace one ray in each direction
       and take a majority vote. */
   int numIn = 0;
-  // numIn += computeCrossingCount<0,-1>(P,d_indices,d_vertices,bvh,useTotalCount);
-  numIn += computeCrossingCount<0,+1>(P,d_indices,d_vertices,bvh,useTotalCount,dbg);
-  // numIn += computeCrossingCount<1,-1>(P,d_indices,d_vertices,bvh,useTotalCount);
-  // numIn += computeCrossingCount<1,+1>(P,d_indices,d_vertices,bvh,useTotalCount);
-  // numIn += computeCrossingCount<2,-1>(P,d_indices,d_vertices,bvh,useTotalCount);
-  // numIn += computeCrossingCount<2,+1>(P,d_indices,d_vertices,bvh,useTotalCount);
+  numIn += computeCrossingCount<0,-1>(P,d_indices,d_vertices,bvh,useTotalCount);
+  numIn += computeCrossingCount<0,+1>(P,d_indices,d_vertices,bvh,useTotalCount);
+  numIn += computeCrossingCount<1,-1>(P,d_indices,d_vertices,bvh,useTotalCount);
+  numIn += computeCrossingCount<1,+1>(P,d_indices,d_vertices,bvh,useTotalCount);
+  numIn += computeCrossingCount<2,-1>(P,d_indices,d_vertices,bvh,useTotalCount);
+  numIn += computeCrossingCount<2,+1>(P,d_indices,d_vertices,bvh,useTotalCount);
 
   d_result[ix+iy*dims.x+iz*dims.x*dims.y] = numIn;
 }
