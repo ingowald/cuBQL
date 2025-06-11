@@ -55,11 +55,14 @@ namespace cuBQL {
     template<typename T, int D, typename Lambda>
     inline __cubql_both
     void forEachPrim(/*! lambda that gets called for each candidate
-                       primitmive index that may contain any
-                       primitmives. if this lamdba does find a new,
-                       better result than whatever the query had
-                       before this lambda MUST return the SQUARE of
-                       the new culling radius */
+                       primitive index that may contain any new result
+                       within the current max query radius. if this
+                       lamdba does find a new, better result than
+                       whatever the query had before this lambda MUST
+                       return the SQUARE of the new culling
+                       radius. Returning a culling radius < 0 will
+                       immediately terminate any future traversal
+                       steps */
                      const Lambda &lambdaToExecuteForEachCandidate,
                      /* the bvh we're querying into */
                      bvh_t<T,D> bvh,
@@ -794,6 +797,7 @@ namespace cuBQL {
             float primResult
               = lambdaToExecuteForEachCandidate(leafPrims[i]);
             leafResult = min(leafResult,primResult);
+            if (leafResult < 0.f) break;
           }
           return leafResult;
         };

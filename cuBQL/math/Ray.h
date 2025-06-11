@@ -14,5 +14,10 @@ namespace cuBQL {
     vec3f direction;
     float tmax;
   };
-    
+
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */direction>
+  struct AxisAlignedRay {
+    vec3f origin;
+    float length;
+  };
 }

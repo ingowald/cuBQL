@@ -29,10 +29,31 @@ add_subdirectory(s01_closestPoint_points_gpu)
 # float3 points
 # ==================================================================
 if (CUBQL_HAVE_CUDA)
-  add_executable(cuBQL_sample02_distanceToTriangleMesh
+  add_executable(sample02_distanceToTriangleMesh
     s02_distanceToTriangleMesh/distanceToTriangleMesh.cu
     )
-  target_link_libraries(cuBQL_sample02_distanceToTriangleMesh
+  target_link_libraries(sample02_distanceToTriangleMesh
+    # the cuda-side builders for float3 data
+    cuBQL_cuda_float3
+    # common samples stuff
+    cuBQL_samples_common
+    )
+endif()
+
+
+# ==================================================================
+# sample that performs gpu-side inside/outside test for a given input
+# mesh and a generated set of query points. Input mesh is supposed to
+# be a 'proper' surface mesh without holes and proper normal
+# orientation (normal points to 'outside'); generated poitns lie on a
+# NxNxN grid. QUeries are performed by tracing axis-aligned rays and
+# computing cuqbl::crossingCount queries.
+# ==================================================================
+if (CUBQL_HAVE_CUDA)
+  add_executable(sample03_insideOutside
+    s03_insideOutsideOfClosedMesh/insideOutside.cu
+    )
+  target_link_libraries(sample03_insideOutside
     # the cuda-side builders for float3 data
     cuBQL_cuda_float3
     # common samples stuff
