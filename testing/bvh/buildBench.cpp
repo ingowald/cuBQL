@@ -15,7 +15,7 @@
 // ======================================================================== //
 
 #include "buildBench.h"
-#include "cuBQL/builder/host.h"
+#include "cuBQL/builder/cpu.h"
 
 namespace testing {
 
@@ -34,12 +34,12 @@ namespace testing {
     if (buildType != BUILDTYPE_DEFAULT)
       std::cout << "#warning: host builder doesn't support this build type, falling back to default" << std::endl;
     bvh_t bvh;
-    cuBQL::host::spatialMedian(bvh,d_boxes,numBoxes,BuildConfig());
+    cuBQL::cpu::spatialMedian(bvh,d_boxes,numBoxes,BuildConfig());
     return bvh;
   }
 
   void free(bvh_t bvh)
-  { cuBQL::host::freeBVH(bvh); }
+  { cuBQL::cpu::freeBVH(bvh); }
 
 } // ::testing
 

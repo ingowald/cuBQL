@@ -30,7 +30,7 @@ namespace testing {
   bvh_t computeBVH(const box_t *d_boxes, int numBoxes)
   {
     bvh_t bvh;
-    cuBQL::host::spatialMedian(bvh,d_boxes,numBoxes,BuildConfig());
+    cuBQL::cpu::spatialMedian(bvh,d_boxes,numBoxes,BuildConfig());
     return bvh;
   }
       
@@ -45,7 +45,7 @@ namespace testing {
   }
 
   void free(bvh_t bvh)
-  { cuBQL::host::freeBVH(bvh); }
+  { cuBQL::cpu::freeBVH(bvh); }
 
 } // ::testing
 

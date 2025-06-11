@@ -19,7 +19,7 @@
 
 #include "cuBQL/bvh.h"
 #include "cuBQL/builder/cuda.h"
-#include "cuBQL/builder/host.h"
+#include "cuBQL/builder/cpu.h"
 #include "samples/common/CmdLine.h"
 #include "samples/common/IO.h"
 #include "testing/common/testRig.h"
@@ -264,7 +264,7 @@ namespace testing {
       auto freeBVH
         = [&]()
         {
-          cuBQL::host::freeBVH(bvh);
+          cuBQL::cpu::freeBVH(bvh);
           bvh = bvh_t{};
         };
       auto download
@@ -276,10 +276,10 @@ namespace testing {
           primIDs.resize(bvh.numPrims);
           memcpy(primIDs.data(),bvh.primIDs,bvh.numPrims*sizeof(primIDs[0]));
         };
-      check([&](){cuBQL::host::spatialMedian(bvh,boxes.data(),boxes.size(),BuildConfig());},
+      check([&](){cuBQL::cpu::spatialMedian(bvh,boxes.data(),boxes.size(),BuildConfig());},
             freeBVH,
             download,
-            "host::spatialMedian",false);
+            "cpu::spatialMedian",false);
     }
 
     void checkDev()
