@@ -24,6 +24,7 @@ namespace cuBQL {
     /*! returns an axis aligned bounding box enclosing this triangle */
     inline __cubql_both box3f bounds() const;
     inline __cubql_both vec3f sample(float u, float v) const;
+    inline __cubql_both vec3f normal() const;
     
     vec3f a, b, c;
   };
@@ -62,6 +63,9 @@ namespace cuBQL {
   }
   
   // ---------------------- Triangle ----------------------
+  inline __cubql_both vec3f Triangle::normal() const
+  { return cross(b-a,c-a); }
+  
   inline __cubql_both box3f Triangle::bounds() const
   { return box3f().including(a).including(b).including(c); }
 

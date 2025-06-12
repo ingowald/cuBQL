@@ -128,9 +128,8 @@ namespace cuBQL {
       {
         // reset to defaults
         *this = {0,0};
-        const Ray ray = queryRay.makeRay();
         // if (dbg) dout << "query unpacked ray " << ray << cuBQL::endl;
-        auto perPrimCode = [getTriangle,this,ray,dbg](uint32_t triangleIdx)->int {
+        auto perPrimCode = [getTriangle,this,queryRay,dbg](uint32_t triangleIdx)->int {
           const Triangle triangle = getTriangle(triangleIdx);
           // if (dbg) {
           //   dout << "Triangle " << triangleIdx << endl;
@@ -138,6 +137,14 @@ namespace cuBQL {
           //   dout << " " << triangle.b << endl;
           //   dout << " " << triangle.c << endl;
           // }
+#if 1
+          if (intersectsTriangle(queryRay,triangle,dbg)) {
+            this->totalCount++;
+            this->crossingCount
+              += (dot(triangle.normal(),queryRay.direction()) > 0.f ? +1 : -1);
+          }
+#else
+          const Ray ray = queryRay.makeRay();
           RayTriangleIntersection isec;
           if (isec.compute(ray,triangle)) {
             this->totalCount++;
@@ -148,6 +155,7 @@ namespace cuBQL {
           // } else {
           //   if (dbg) dout << "MISS" << endl;
           }
+#endif
           return CUBQL_CONTINUE_TRAVERSAL;
         };
         cuBQL::fixedRayQuery::forEachPrim(perPrimCode,bvh,queryRay,dbg);

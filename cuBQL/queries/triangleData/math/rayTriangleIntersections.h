@@ -92,5 +92,62 @@ namespace cuBQL {
     return true;
   }
 
+
+
+
+  template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
+  inline __cubql_both
+  bool intersectsTriangle(AxisAlignedRay<axis,sign> ray,
+                          Triangle triangle,
+                          bool dbg=false)
+  {
+    using cuBQL::dot;
+    using cuBQL::cross;
+
+    const vec3f lineOrigin = ray.origin;
+    vec3f a = triangle.a;
+    vec3f b = triangle.b;
+    vec3f c = triangle.c;
+    
+    // transform triangle into space centered aorund line origin
+    a = a - lineOrigin;
+    b = b - lineOrigin;
+    c = c - lineOrigin;
+    // compute normal, for plane equation
+    vec3f n = triangle.normal();
+
+    // create horitonzal semi-infite "ray" from origin=0 alone x axis
+    const vec3f org = vec3f(0.f);
+    const vec3f dir = ray.direction();
+    const vec3f end = ray.length * ray.direction();
+
+    bool planeEq_org = dot(org - a, n);
+    bool planeEq_end = dot(end - a, n);
+
+    bool bothOnSameSide = planeEq_org * planeEq_end > 0.f;
+    if (!bothOnSameSide)
+      return false;
+
+    auto pluecker=[](vec3f a0, vec3f a1, vec3f b0, vec3f b1) 
+    { return dot(a1-a0,cross(b1,b0))+dot(b1-b0,cross(a1,a0)); };
+
+    // compute pluecker coordinates dot product of all edges wrt x
+    // axis ray. since the ray is mostly 0es and 1es, this shold all
+    // evaluate to some fairly simple expressions
+    float sx = pluecker(org,org+dir,a,b);
+    float sy = pluecker(org,org+dir,b,c);
+    float sz = pluecker(org,org+dir,c,a);
+    // for ray to be inside edges it must have all positive or all
+    // negative pluecker winding order
+    auto min3=[](float x, float y, float z)
+    { return min(min(x,y),z); };
+    auto max3=[](float x, float y, float z)
+    { return max(max(x,y),z); };
+    if (min3(sx,sy,sz) >= 0.f || max3(sx,sy,sz) <= 0.f)
+      return true;
+      
+    return false;
+  }
+  
 }
 
