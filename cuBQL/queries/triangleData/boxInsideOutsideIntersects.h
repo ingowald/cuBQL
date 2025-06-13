@@ -13,7 +13,7 @@
 
 namespace cuBQL {
   namespace triangles {
-    namespace boxInsideOutSideIntersects {
+    namespace boxInsideOutsideIntersects {
       // =============================================================================
       // *** INTERFACE ***
       // =============================================================================
@@ -64,6 +64,6 @@ namespace cuBQL {
           : OUTSIDE;
       }
 
-    } // ::cuBQL::triangles::boxInsideOutSideIntersect
+    } // ::cuBQL::triangles::boxInsideOutsideIntersect
   } // ::cuBQL::triangles
 } // ::cuBQL

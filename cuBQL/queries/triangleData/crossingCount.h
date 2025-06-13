@@ -18,6 +18,7 @@
 
 #pragma once
 
+// for 'fixedRayQuery'
 #include "cuBQL/traversal/rayQueries.h"
 // the kind of model data we operate on
 #include "cuBQL/queries/triangleData/math/rayTriangleIntersections.h"
@@ -136,17 +137,10 @@ namespace cuBQL {
     {
       // reset to defaults
       *this = {0,0};
-      // if (dbg) dout << "query unpacked ray " << ray << cuBQL::endl;
       auto perPrimCode = [getTriangle,this,queryRay,dbg](uint32_t triangleIdx)->int {
         const Triangle triangle = getTriangle(triangleIdx);
-        // if (dbg) {
-        //   dout << "Triangle " << triangleIdx << endl;
-        //   dout << " " << triangle.a << endl;
-        //   dout << " " << triangle.b << endl;
-        //   dout << " " << triangle.c << endl;
-        // }
 #if 1
-        if (intersectsTriangle(queryRay,triangle,dbg)) {
+        if (rayIntersectsTriangle(queryRay,triangle,dbg)) {
           this->totalCount++;
           this->crossingCount
             += (dot(triangle.normal(),queryRay.direction()) > 0.f ? +1 : -1);
@@ -158,10 +152,6 @@ namespace cuBQL {
           this->totalCount++;
           this->crossingCount
             += (dot(isec.N,ray.direction) > 0.f ? +1 : -1);
-          // if (dbg)
-          //   dout << "HIT " << this->totalCount << " " << this->crossingCount << endl;
-          // } else {
-          //   if (dbg) dout << "MISS" << endl;
         }
 #endif
         return CUBQL_CONTINUE_TRAVERSAL;

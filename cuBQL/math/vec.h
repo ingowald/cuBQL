@@ -88,6 +88,10 @@ namespace cuBQL {
     inline __cubql_both T &operator[](int i)       { return i?y:x; }
     /*! auto-cast to equivalent cuda type */
     inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; return t; }
+#ifdef __CUDACC__
+    /*! allow to typecast that to a dim3, so it can be used as a cuda kernel launch dim */
+    inline __cubql_both operator dim3() { dim3 t; t.x = x; t.y = y; t.z = 1; return t; }
+#endif    
     T x, y;
   };
   template<typename T>
@@ -99,6 +103,7 @@ namespace cuBQL {
     /*! auto-cast to equivalent cuda type */
     inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; t.z = z; return t; }
 #ifdef __CUDACC__
+    /*! allow to typecast that to a dim3, so it can be used as a cuda kernel launch dim */
     inline __cubql_both operator dim3() { dim3 t; t.x = x; t.y = y; t.z = z; return t; }
 #endif    
     T x, y, z;

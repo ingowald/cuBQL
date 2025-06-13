@@ -16,6 +16,10 @@
 
 # common stuff - data generators and IO for loading/generating test data
 add_subdirectory(common)
+if (NOT (TARGET stb_image))
+  add_subdirectory(3rdParty/stb_image)
+endif()
+
 
 # ==================================================================
 # sample that performs gpu-side closest-point queries between sets of
@@ -77,6 +81,27 @@ if (CUBQL_HAVE_CUDA)
     cuBQL_cuda_float3
     # common samples stuff
     cuBQL_samples_common
+    )
+endif()
+
+
+
+# ==================================================================
+# sample that traces a grid of NxM rays diagonally trhought he
+# bounding box of a loaded triangle mesh, and computes - 'xray-style'
+# whether the ray did pass through unoccluded (white) or got occluded
+# (black), then saves that as an image
+# ==================================================================
+if (CUBQL_HAVE_CUDA)
+  add_executable(sample05_lineOfSight
+    s05_lineOfSight/lineOfSight.cu
+    )
+  target_link_libraries(sample05_lineOfSight
+    # the cuda-side builders for float3 data
+    cuBQL_cuda_float3
+    # common samples stuff
+    cuBQL_samples_common
+    stb_image
     )
 endif()
 

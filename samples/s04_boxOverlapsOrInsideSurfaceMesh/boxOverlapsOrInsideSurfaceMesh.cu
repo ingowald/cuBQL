@@ -40,16 +40,16 @@ void d_computeVolume(float   *d_result,
   };
 
   using namespace cuBQL::triangles;
-  boxInsideOutSideIntersects::result_t result
+  boxInsideOutsideIntersects::result_t result
     = checkOnlyBoundingBoxes
-    ? boxInsideOutSideIntersects::queryVsTriangleBoundingBoxes(bvh,getTriangle,queryBox)
-    : boxInsideOutSideIntersects::queryVsActualTriangles(bvh,getTriangle,queryBox);
+    ? boxInsideOutsideIntersects::queryVsTriangleBoundingBoxes(bvh,getTriangle,queryBox)
+    : boxInsideOutsideIntersects::queryVsActualTriangles(bvh,getTriangle,queryBox);
 
   int v;
   switch (result) {
-  case boxInsideOutSideIntersects::OUTSIDE:    v = 0; break;
-  case boxInsideOutSideIntersects::INTERSECTS: v = 1; break;
-  case boxInsideOutSideIntersects::INSIDE:     v = 2; break;
+  case boxInsideOutsideIntersects::OUTSIDE:    v = 0; break;
+  case boxInsideOutsideIntersects::INTERSECTS: v = 1; break;
+  case boxInsideOutsideIntersects::INSIDE:     v = 2; break;
   };
   d_result[ix+iy*dims.x+iz*dims.x*dims.y] = v;
 }
