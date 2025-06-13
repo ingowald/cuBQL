@@ -22,8 +22,8 @@
 
 #include "cuBQL/traversal/rayQueries.h"
 // the kind of model data we operate on
-#include "cuBQL/queries/triangles/Triangle.h"
-#include "cuBQL/queries/triangles/RayTriangleIntersection.h"
+#include "cuBQL/queries/triangleData/Triangle.h"
+#include "cuBQL/queries/triangleData/math/boxTriangleIntersections.h"
 
 /*! \namespace cuBQL - *cu*BQL based geometric *q*ueries */
 namespace cuBQL {
@@ -46,6 +46,8 @@ namespace cuBQL {
       queries and return this value. In particular, this allows for
       checking if *any* triangle intersects this box by calling this
       kernel with maxIntersectionsToLookFor==1
+
+      getTriangle is lambda getTriangle(uint32_t triID)->Triangle
     */
     template<typename GetTrianglesLambda>
     inline __cubql_both
@@ -57,7 +59,10 @@ namespace cuBQL {
     /*! similar to \see countTrianglesIntersectingQueryBox, but
         doesn't perform actual trianle-box tests, and instead only
         uses cheaper (and conservative) test against the triangles'
-        bounding boxes */
+        bounding boxes
+
+        getTriangle is lambda getTriangle(uint32_t triID)->Triangle
+    */
     template<typename GetTrianglesLambda>
     inline __cubql_both
     int countTrianglesWhoseBoundsOverlapQueryBox(const bvh3f bvh,
@@ -81,13 +86,13 @@ namespace cuBQL {
       auto perTriangle
         = [&count,getTriangle,queryBox,maxIntersectionsToLookFor](uint32_t primID)
         {
-          if (triangles::triangleIntersectsBox(getTriangle(),queryBox))
+          if (triangles::triangleIntersectsBox(getTriangle(primID),queryBox))
             ++count;
           return (count >= maxIntersectionsToLookFor)
             ? CUBQL_TERMINATE_TRAVERSAL
             : CUBQL_CONTINUE_TRAVERSAL;
         };
-      fixedBoxQuery::forEachPrim(perTriangle,bvh,queryBox);
+      fixedBoxQuery::forEachPrim(perTriangle,bvh,queryBox,/*dbg*/false);
       return count;
     }
 
@@ -100,15 +105,15 @@ namespace cuBQL {
     {
       int count = 0;
       auto perTriangle
-        = [&count,getTriangle,queryBox,maxIntersectionsToLookFor](uint32_t primID)
+        = [&count,getTriangle,queryBox,maxIntersectionsToLookFor](uint32_t primID)->int
         {
-          if (getTriangle().getBounds().overlaps(queryBox))
+          if (getTriangle(primID).bounds().overlaps(queryBox))
             ++count;
           return (count >= maxIntersectionsToLookFor)
             ? CUBQL_TERMINATE_TRAVERSAL
             : CUBQL_CONTINUE_TRAVERSAL;
         };
-      fixedBoxQuery::forEachPrim(perTriangle,bvh,queryBox);
+      fixedBoxQuery::forEachPrim(perTriangle,bvh,queryBox,/*dbg*/false);
       return count;
     }
     

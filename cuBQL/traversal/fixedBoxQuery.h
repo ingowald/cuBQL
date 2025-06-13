@@ -162,7 +162,8 @@ namespace cuBQL {
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToCallOnEachPrim,
                      const BinaryBVH<T,D> bvh,
-                     const box3f queryBox)
+                     const box3f queryBox,
+                     bool dbg)
     {
       auto leafCode = [&lambdaToCallOnEachPrim]
         (const uint32_t *primIDs, size_t numPrims) -> int
@@ -172,7 +173,7 @@ namespace cuBQL {
             return CUBQL_TERMINATE_TRAVERSAL;
         return CUBQL_CONTINUE_TRAVERSAL;
       };
-      forEachLeaf(leafCode,bvh,queryBox);
+      forEachLeaf(leafCode,bvh,queryBox,dbg);
     }
 
 
@@ -182,7 +183,8 @@ namespace cuBQL {
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
                      const WideBVH<T,D,W> bvh,
-                     const box3f queryBox)
+                     const box3f queryBox,
+                     bool dbg)
     {
       struct StackEntry {
         uint64_t nodeID:48;
@@ -282,7 +284,8 @@ namespace cuBQL {
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToCallOnEachPrim,
                      const WideBVH<T,D,W> bvh,
-                     const box3f queryBox)
+                     const box3f queryBox,
+                     bool dbg)
     {
       auto leafCode = [&lambdaToCallOnEachPrim]
         (const uint32_t *primIDs, size_t numPrims) -> int
@@ -292,7 +295,7 @@ namespace cuBQL {
             return CUBQL_TERMINATE_TRAVERSAL;
         return CUBQL_CONTINUE_TRAVERSAL;
       };
-      forEachLeaf(leafCode,bvh,queryBox);
+      forEachLeaf(leafCode,bvh,queryBox,dbg);
     }
     
   } // ::cubql::fixedBoxQuery

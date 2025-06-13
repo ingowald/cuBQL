@@ -142,10 +142,10 @@ endforeach()
 # automatically on both cpu and cuda, so this is a INTERFACE library
 add_library(cuBQL_queries INTERFACE
   #
-  queries/points/knn.h
+  queries/pointData/knn.h
   #
-  queries/points/findClosest.h
-  queries/points/knn.h
+  queries/pointData/findClosest.h
+  queries/pointData/knn.h
   )
 target_link_libraries(cuBQL_queries
   INTERFACE

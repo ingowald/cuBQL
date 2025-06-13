@@ -1,7 +1,7 @@
 // Copyright 2025 Ingo Wald
 // SPDX-License-Identifier: Apache-2.0
 
-#include "cuBQL/queries/triangleData/pointInsideOutside.h"
+#include "cuBQL/queries/triangleData/boxInsideOutsideIntersects.h"
 #include "cuBQL/builder/cuda.h"
 #include <fstream>
 #include "../common/loadOBJ.h"
@@ -13,31 +13,45 @@ using cuBQL::box3f;
 using cuBQL::bvh3f;
 using cuBQL::divRoundUp;
 
-__global__ void d_computeVolume(float   *d_result,
-                                vec3i    dims,
-                                vec3i   *d_indices,
-                                vec3f   *d_vertices,
-                                box3f    worldBounds,
-                                bvh3f    bvh,
-                                bool     useTotalCount)
+__global__
+void d_computeVolume(float   *d_result,
+                     vec3i    dims,
+                     vec3i   *d_indices,
+                     vec3f   *d_vertices,
+                     box3f    worldBounds,
+                     bvh3f    bvh,
+                     /*! if true, we only check the bounding boxes of
+                       triangles, not actual box-triangle tests */ 
+                     bool     checkOnlyBoundingBoxes)
 {
   int ix = threadIdx.x+blockIdx.x*blockDim.x; if (ix >= dims.x) return;
   int iy = threadIdx.y+blockIdx.y*blockDim.y; if (iy >= dims.y) return;
   int iz = threadIdx.z+blockIdx.z*blockDim.z; if (iz >= dims.z) return;
 
-  bool dbg =  vec3i(ix,iy,iz) == vec3i(128,40,100);//dims/2;
+  // bool dbg =  vec3i(ix,iy,iz) == vec3i(128,40,100);//dims/2;
   
-  vec3f f = (vec3f(ix,iy,iz)+.5f) / vec3f(dims);
-  vec3f P = (1.f-f)*worldBounds.lower + f*worldBounds.upper;
-  
+  vec3f f0 = (vec3f(ix,iy,iz)) / vec3f(dims);
+  vec3f f1 = (vec3f(ix,iy,iz)+vec3f(1.f)) / vec3f(dims);
+  box3f queryBox { worldBounds.lerp(f0), worldBounds.lerp(f1) };
   auto getTriangle = [d_indices,d_vertices](uint32_t primID)
   {
     vec3i idx = d_indices[primID];
     return Triangle{d_vertices[idx.x],d_vertices[idx.y],d_vertices[idx.z]};
   };
 
-  bool inside = cuBQL::triangles::pointIsInsideSurface(bvh,getTriangle,P);
-  d_result[ix+iy*dims.x+iz*dims.x*dims.y] = (float)inside;
+  using namespace cuBQL::triangles;
+  boxInsideOutSideIntersects::result_t result
+    = checkOnlyBoundingBoxes
+    ? boxInsideOutSideIntersects::queryVsTriangleBoundingBoxes(bvh,getTriangle,queryBox)
+    : boxInsideOutSideIntersects::queryVsActualTriangles(bvh,getTriangle,queryBox);
+
+  int v;
+  switch (result) {
+  case boxInsideOutSideIntersects::OUTSIDE:    v = 0; break;
+  case boxInsideOutSideIntersects::INTERSECTS: v = 1; break;
+  case boxInsideOutSideIntersects::INSIDE:     v = 2; break;
+  };
+  d_result[ix+iy*dims.x+iz*dims.x*dims.y] = v;
 }
 
 template<typename T>
@@ -84,7 +98,7 @@ std::vector<float> computeVolume(const std::vector<vec3i> &indices,
                                  const std::vector<vec3f> &vertices,
                                  vec3i dims,
                                  box3f worldBounds,
-                                 bool  useTotalCount)
+                                 bool  checkOnlyBoundingBoxes)
 {
   int numCells = dims.x*dims.y*dims.z;
   std::vector<float> result(numCells);
@@ -100,7 +114,7 @@ std::vector<float> computeVolume(const std::vector<vec3i> &indices,
   vec3i nb = divRoundUp(dims,bs);
   d_computeVolume<<<(dim3)nb,(dim3)bs>>>(d_result,dims,d_indices,d_vertices,
                              worldBounds,
-                             bvh,useTotalCount);
+                             bvh,checkOnlyBoundingBoxes);
   
   cuBQL::cuda::free(bvh);
   
@@ -122,7 +136,7 @@ int main(int ac, char **av)
 {
   std::string inFileName = "";
   std::string outFilePrefix = "";
-  bool useTotalCount = false;
+  bool checkOnlyBoundingBoxes = false;
   int n = 256;
   for (int i=1;i<ac;i++) {
     const std::string arg = av[i];
@@ -130,8 +144,8 @@ int main(int ac, char **av)
       inFileName = arg;
     else if (arg == "-o")
       outFilePrefix = av[++i];
-    else if (arg == "-tc") 
-      useTotalCount = true;
+    else if (arg == "-bo" || arg == "--boxes-only") 
+      checkOnlyBoundingBoxes = true;
     else if (arg == "-n") 
       n = std::stoi(av[++i]);
     else
@@ -157,7 +171,7 @@ int main(int ac, char **av)
   std::cout << "using volume dims of " << dims << std::endl;
 
   std::vector<float> result
-    = computeVolume(indices,vertices,dims,bb,useTotalCount);
+    = computeVolume(indices,vertices,dims,bb,checkOnlyBoundingBoxes);
   const std::string outFileName =
     outFilePrefix
     +"_"+std::to_string(dims.x)

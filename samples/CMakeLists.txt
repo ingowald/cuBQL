@@ -62,3 +62,22 @@ if (CUBQL_HAVE_CUDA)
 endif()
 
 
+# ==================================================================
+# sample that computes, for every cell of a 3D cartesian grid put
+# around a surface mesh, whether the box representing that cell is
+# full inside the surface (0), fully outside (1), or whether it
+# intersects with one of the triangles of the surface mesh
+# ==================================================================
+if (CUBQL_HAVE_CUDA)
+  add_executable(sample04_boxOverlapsOrInsideSurfaceMesh
+    s04_boxOverlapsOrInsideSurfaceMesh/boxOverlapsOrInsideSurfaceMesh.cu
+    )
+  target_link_libraries(sample04_boxOverlapsOrInsideSurfaceMesh
+    # the cuda-side builders for float3 data
+    cuBQL_cuda_float3
+    # common samples stuff
+    cuBQL_samples_common
+    )
+endif()
+
+

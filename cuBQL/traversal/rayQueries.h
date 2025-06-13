@@ -76,8 +76,8 @@ namespace cuBQL {
   {
     /* for an axis-aligned ray, we can just convert that ray to a
        box, and traverse that instad */
-    vec3f A = ray.origin;
-    vec3f B = ray.origin + ray.length * ray.direction();
+    vec3f A = ray.origin + ray.tmin * ray.direction();
+    vec3f B = ray.origin + ray.tmax * ray.direction();
     box3f rayAsBox { min(A,B), max(A,B) };
     // if (dbg) dout << "asbox " << rayAsBox << dout.endl;
     cuBQL::fixedBoxQuery::forEachLeaf(lambdaToExecuteForEachCandidate,bvh,rayAsBox,dbg);

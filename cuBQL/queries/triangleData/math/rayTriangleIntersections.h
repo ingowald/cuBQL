@@ -104,26 +104,31 @@ namespace cuBQL {
     vec3f n = triangle.normal();
 
     // create horitonzal semi-infite "ray" from origin=0 alone x axis
-    const vec3f org = vec3f(0.f);
     const vec3f dir = ray.direction();
-    const vec3f end = ray.length * ray.direction();
+    const vec3f beg = ray.tmin * dir;
+    const vec3f end = ray.tmax * dir;
 
-    bool planeEq_org = dot(org - a, n);
+    bool planeEq_beg = dot(beg - a, n);
     bool planeEq_end = dot(end - a, n);
 
-    bool bothOnSameSide = planeEq_org * planeEq_end > 0.f;
+    bool bothOnSameSide = planeEq_beg * planeEq_end > 0.f;
     if (!bothOnSameSide)
       return false;
 
+    // auto pluecker=[](vec3f a0, vec3f da, vec3f b0, vec3f db) 
+    // { return dot(da,cross(db,b0))+dot(db,cross(da,a0)); };
     auto pluecker=[](vec3f a0, vec3f a1, vec3f b0, vec3f b1) 
     { return dot(a1-a0,cross(b1,b0))+dot(b1-b0,cross(a1,a0)); };
 
     // compute pluecker coordinates dot product of all edges wrt x
     // axis ray. since the ray is mostly 0es and 1es, this shold all
     // evaluate to some fairly simple expressions
-    float sx = pluecker(org,org+dir,a,b);
-    float sy = pluecker(org,org+dir,b,c);
-    float sz = pluecker(org,org+dir,c,a);
+    float sx = pluecker(beg,beg+dir,a,b);
+    float sy = pluecker(beg,beg+dir,b,c);
+    float sz = pluecker(beg,beg+dir,c,a);
+    // float sx = pluecker(beg,dir,a,b-a);
+    // float sy = pluecker(beg,dir,b,c-b);
+    // float sz = pluecker(beg,dir,c,a-c);
     // for ray to be inside edges it must have all positive or all
     // negative pluecker winding order
     auto min3=[](float x, float y, float z)
