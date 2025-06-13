@@ -17,7 +17,7 @@
 #pragma once
 
 #include "cuBQL/bvh.h"
-#include "cuBQL/queries/points/findClosest.h"
+#include "cuBQL/queries/pointData/findClosest.h"
 #include "samples/common/CmdLine.h"
 #include "samples/common/IO.h"
 #include "testing/common/testRig.h"

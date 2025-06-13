@@ -18,7 +18,7 @@
 
 #include "cuBQL/bvh.h"
 // the kind of model data we operate on
-#include "cuBQL/queries/triangles/Triangle.h"
+#include "cuBQL/queries/triangleData/Triangle.h"
 // the kind of traversal we need for this query
 #include "cuBQL/traversal/shrinkingRadiusQuery.h"
 

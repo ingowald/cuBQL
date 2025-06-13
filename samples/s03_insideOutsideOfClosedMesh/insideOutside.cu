@@ -3,7 +3,7 @@
 
 #include "cuBQL/bvh.h"
 #include "cuBQL/builder/cuda.h"
-#include "cuBQL/queries/triangles/crossingCount/cc.h"
+#include "cuBQL/queries/triangleData/crossingCount.h"
 #include <fstream>
 #include "../common/loadOBJ.h"
 
