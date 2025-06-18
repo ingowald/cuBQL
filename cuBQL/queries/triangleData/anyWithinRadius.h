@@ -30,7 +30,8 @@ namespace cuBQL {
                        GetTriangleLambda getTriangle,
                        vec3f queryBallCenter,
                        float queryBallRadius,
-                       int maxNumToLookFor=INT_MAX);
+                       int maxNumToLookFor=INT_MAX,
+                        bool dbg = false);
     
     /*! checks if there are _any_ triangles within a given
         (non-squared) radius r of a point P */
@@ -39,7 +40,8 @@ namespace cuBQL {
     bool anyWithinRadius(bvh3f bvh,
                          GetTriangleLambda getTriangle,
                          vec3f queryBallCenter,
-                         float queryBallRadius);
+                         float queryBallRadius,
+                         bool dbg = false);
     
     // =============================================================================
     // *** IMPLEMENTATION ***
@@ -52,14 +54,15 @@ namespace cuBQL {
                         GetTriangleLambda getTriangle,
                         vec3f queryBallCenter,
                         float queryBallRadius,
-                        int maxNumToLookFor)
+                        int maxNumToLookFor,
+                        bool dbg)
     {
       int numFound = 0;
       auto perPrim
-        = [&numFound,maxNumToLookFor,getTriangle,queryBallCenter,queryBallRadius]
+        = [&numFound,maxNumToLookFor,getTriangle,queryBallCenter,queryBallRadius,dbg]
         (uint32_t triID)
         {
-          auto sqrDist = computeClosestPoint(queryBallCenter,getTriangle(triID)).sqrDist;
+          auto sqrDist = computeClosestPoint(queryBallCenter,getTriangle(triID),dbg).sqrDist;
           if (sqrDist != CUBQL_INF && sqrDist <= squareOf(queryBallRadius)) 
             ++numFound;
           return numFound >= maxNumToLookFor
@@ -69,7 +72,8 @@ namespace cuBQL {
       fixedRadiusQuery::forEachPrim(perPrim,bvh,
                                     queryBallCenter,
                                     /* traversal templates uses SQUARE of radius!! */
-                                    squareOf(queryBallRadius));
+                                    squareOf(queryBallRadius),
+                                    dbg);
       return numFound;
     }
     
@@ -78,10 +82,14 @@ namespace cuBQL {
     bool anyWithinRadius(bvh3f bvh,
                          GetTriangleLambda getTriangle,
                          vec3f queryBallCenter,
-                         float queryBallRadius)
+                         float queryBallRadius,
+                         bool dbg)
     { return numWithinRadius(bvh,getTriangle,
                              queryBallCenter,
-                             queryBallRadius,/* max to look for for early exit */1) > 0; }
+                             queryBallRadius,
+                             /* max to look for for early exit */1,
+                             dbg
+                             ) > 0; }
     
     
   } // ::cuBQL::triangles

@@ -52,7 +52,8 @@ namespace cuBQL {
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
                        CUBQL_INF for unrestricted searches */
-                     T queryBallRadiusSquare);
+                     T queryBallRadiusSquare,
+                     bool dbg = false);
 
     /*! This query finds all BVH *leaves* within a given fixed (ie,
         never either moving or shrinking) query ball, and calls a
@@ -80,7 +81,8 @@ namespace cuBQL {
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
                        CUBQL_INF for unrestricted searches */
-                     T queryBallRadiusSquare);
+                     T queryBallRadiusSquare,
+                     bool dbg = false);
   
     // ******************************************************************
     // IMPLEMENTATION
@@ -112,7 +114,8 @@ namespace cuBQL {
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
                        CUBQL_INF for unrestricted searches */
-                     T queryBallRadiusSquare)
+                     T queryBallRadiusSquare,
+                     bool dbg)
     {
       const int stackSize = 64;
       bvh3f::node_t::Admin traversalStack[stackSize], *stackPtr = traversalStack;
@@ -139,9 +142,16 @@ namespace cuBQL {
           typename bvh_t<T,D>::node_t n1 = bvh.nodes[n1Idx];
           float d0 = fSqrDistance_rd(queryBallCenter,n0.bounds);
           float d1 = fSqrDistance_rd(queryBallCenter,n1.bounds);
-          bool o0 = (d0 >= queryBallRadiusSquare);
-          bool o1 = (d1 >= queryBallRadiusSquare);
+          bool o0 = (d0 < queryBallRadiusSquare);
+          bool o1 = (d1 < queryBallRadiusSquare);
 
+          // if (dbg) {
+          //   dout << "at node " << node.offset << endl;
+          //   dout << "w/ query ball " << queryBallCenter << "," << queryBallRadiusSquare << endl;
+          //   dout << "  " << n0.bounds << " -> " << (int)o0 << endl;
+          //   dout << "  " << n1.bounds << " -> " << (int)o1 << endl;
+          // }
+          
           if (o0) {
             if (o1) {
               *stackPtr++ = n1.admin;
@@ -203,7 +213,8 @@ namespace cuBQL {
                      bvh_t<T,D> bvh,
                      /* the query ball we're querying - note SQUARE radius */
                      vec_t<T,D> queryBallCenter,
-                     T queryBallRadiusSquare)
+                     T queryBallRadiusSquare,
+                     bool dbg)
     {
       /* the code we want to have executed for each leaf that may
          contain candidates. we loop over each prim in a given leaf,
@@ -219,7 +230,7 @@ namespace cuBQL {
           return CUBQL_CONTINUE_TRAVERSAL;
         };
       forEachLeaf(lambdaToCallForEachVisitedNode,bvh,
-                  queryBallCenter,queryBallRadiusSquare);
+                  queryBallCenter,queryBallRadiusSquare,dbg);
     }
     
   }

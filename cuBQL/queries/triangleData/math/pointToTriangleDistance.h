@@ -24,12 +24,14 @@ namespace cuBQL {
         value, and return it*/
     inline __cubql_both
     PointToTriangleTestResult computeClosestPoint(Triangle triangle,
-                                                  vec3f queryPoint);
+                                                  vec3f queryPoint,
+                                                  bool dbg=false);
     /*! compute one point-triangle distance test, fill in the result
         value, and return it*/
     inline __cubql_both
     PointToTriangleTestResult computeClosestPoint(vec3f queryPoint,
-                                                  Triangle triangle);
+                                                  Triangle triangle,
+                                                  bool dbg=false);
 
     /*! given a pre-initialized 'PointToTriangleTestResult' struct -
         that may already contain some other triangle's distance test -
@@ -40,7 +42,8 @@ namespace cuBQL {
     inline __cubql_both
     bool computeClosestPoint(PointToTriangleTestResult &existingResult,
                              Triangle triangle,
-                             vec3f queryPoint);
+                             vec3f queryPoint,
+                             bool dbg=false);
     
     
     // =============================================================================
@@ -95,8 +98,10 @@ namespace cuBQL {
       inline __cubql_both
       bool computeOneIntersection(PointToTriangleTestResult &result,
                                   const cuBQL::Triangle triangle,
-                                  const cuBQL::vec3f    queryPoint)
+                                  const cuBQL::vec3f    queryPoint,
+                                  bool dbg)
       {
+        if (dbg) printf("testing triangle ...\n");
         const vec3f a = triangle.a;
         const vec3f b = triangle.b;
         const vec3f c = triangle.c;
@@ -126,24 +131,28 @@ namespace cuBQL {
 
     inline __cubql_both
     PointToTriangleTestResult computeClosestPoint(Triangle triangle,
-                                                  vec3f queryPoint)
+                                                  vec3f queryPoint,
+                                                  bool dbg)
     {
       PointToTriangleTestResult result;
-      pointToTriangleTest::computeOneIntersection(result,triangle,queryPoint);
+      pointToTriangleTest::computeOneIntersection(result,triangle,queryPoint,dbg);
       return result;
     }
 
     inline __cubql_both
-    PointToTriangleTestResult computeClosestPoint(vec3f queryPoint,Triangle triangle)
-    { return computeClosestPoint(triangle,queryPoint); }
+    PointToTriangleTestResult computeClosestPoint(vec3f queryPoint,
+                                                  Triangle triangle,
+                                                  bool dbg)
+    { return computeClosestPoint(triangle,queryPoint,dbg); }
     
     inline __cubql_both
     bool computeClosestPoint(PointToTriangleTestResult &existingResult,
                              Triangle triangle,
-                             vec3f queryPoint)
+                             vec3f queryPoint,
+                             bool dbg)
     {
       return pointToTriangleTest::computeOneIntersection
-        (existingResult,triangle,queryPoint);
+        (existingResult,triangle,queryPoint,dbg);
     }
     
   }

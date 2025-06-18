@@ -37,14 +37,16 @@ void d_computeVolume(float   *d_result,
   };
 
   /* as radius, in this example use 1% of scene diameter */
-  float queryRadius = length(worldBounds.size()) * .01f;
+  float queryRadius = length(worldBounds.size()) * .05f;
+
+  bool dbg = vec3f(ix,iy,iz) == vec3f(16);
   
   using namespace cuBQL::triangles;
   bool closeToSurface
     = cuBQL::triangles::anyWithinRadius(// the model we're querying
                                        bvh,getTriangle,
                                        // the point and radius we're querying with
-                                       queryPoint,queryRadius);
+                                       queryPoint,queryRadius,dbg);
   d_result[ix+iy*dims.x+iz*dims.x*dims.y] = closeToSurface?1.f:0.f;
 }
 
