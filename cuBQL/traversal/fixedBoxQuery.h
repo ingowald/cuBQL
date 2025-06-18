@@ -1,26 +1,10 @@
-// ======================================================================== //
-// Copyright 2023-2023 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
- 
+// Copyright 2025 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 
-#include "cuBQL/bvh.h"
+#include "cuBQL/traversal/fixedAnyShapeQuery.h"
 
-#define CUBQL_TERMINATE_TRAVERSAL 1
-#define CUBQL_CONTINUE_TRAVERSAL  0
-  
 namespace cuBQL {
   namespace fixedBoxQuery {
     
@@ -82,9 +66,6 @@ namespace cuBQL {
                      const box3f queryBox,
                      bool dbg)
     {
-      struct StackEntry {
-        uint32_t idx;
-      };
       bvh3f::node_t::Admin traversalStack[64], *stackPtr = traversalStack;
       bvh3f::node_t::Admin node = bvh.nodes[0].admin;
       // ------------------------------------------------------------------
@@ -141,7 +122,7 @@ namespace cuBQL {
           // we're at a valid leaf: call the lambda and see if that gave
           // us a enw, closer cull radius
           int leafResult
-            = lambdaToCallOnEachLeaf(bvh.primIDs+node.offset,node.count);
+            = lambdaToCallOnEachLeaf(bvh.primIDs+node.offset,(uint32_t)node.count);
           // if (dbg)
           //   dout << "leaf returned " << leafResult << endl;
           if (leafResult == CUBQL_TERMINATE_TRAVERSAL)
@@ -222,7 +203,7 @@ namespace cuBQL {
 
         // we DID reach a leaf!
         int leafResult
-          = lambdaToCallOnEachLeaf(bvh.primIDs+child.offset,child.count);
+          = lambdaToCallOnEachLeaf(bvh.primIDs+child.offset,(uint32_t)child.count);
         if (leafResult == CUBQL_TERMINATE_TRAVERSAL)
           return;
         if (current.childID+1 < W)
@@ -250,7 +231,7 @@ namespace cuBQL {
         else if (child.count != 0) {
           // it's a boy! do the leaf...
           int leafResult
-            = lambdaToCallOnEachLeaf(bvh.primIDs+child.offset,child.count);
+            = lambdaToCallOnEachLeaf(bvh.primIDs+child.offset,(uint32_t)child.count);
           if (leafResult == CUBQL_TERMINATE_TRAVERSAL)
             return;
           // ... then skip to next

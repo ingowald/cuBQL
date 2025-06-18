@@ -87,7 +87,7 @@ endif()
 
 
 # ==================================================================
-# sample that traces a grid of NxM rays diagonally trhought he
+# sample that traces a grid of NxM rays diagonally through the
 # bounding box of a loaded triangle mesh, and computes - 'xray-style'
 # whether the ray did pass through unoccluded (white) or got occluded
 # (black), then saves that as an image
@@ -97,6 +97,26 @@ if (CUBQL_HAVE_CUDA)
     s05_lineOfSight/lineOfSight.cu
     )
   target_link_libraries(sample05_lineOfSight
+    # the cuda-side builders for float3 data
+    cuBQL_cuda_float3
+    # common samples stuff
+    cuBQL_samples_common
+    stb_image
+    )
+endif()
+
+
+# ==================================================================
+# sample that computes a volume of NxMxK floats that each store '1' if
+# point is within a given distance of the loaded surface mesh, and '0'
+# if not. Chosen distance for this sample is 1% of scene diameter;
+# this uses the triangles::anyWithinRadius() query.
+# ==================================================================
+if (CUBQL_HAVE_CUDA)
+  add_executable(sample05_anyTriangleWithinRadius
+    s06_anyTriangleWithinRadius/anyTriangleWithinRadius.cu
+    )
+  target_link_libraries(sample05_anyTriangleWithinRadius
     # the cuda-side builders for float3 data
     cuBQL_cuda_float3
     # common samples stuff
