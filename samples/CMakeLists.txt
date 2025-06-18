@@ -113,10 +113,10 @@ endif()
 # this uses the triangles::anyWithinRadius() query.
 # ==================================================================
 if (CUBQL_HAVE_CUDA)
-  add_executable(sample05_anyTriangleWithinRadius
+  add_executable(sample06_anyTriangleWithinRadius
     s06_anyTriangleWithinRadius/anyTriangleWithinRadius.cu
     )
-  target_link_libraries(sample05_anyTriangleWithinRadius
+  target_link_libraries(sample06_anyTriangleWithinRadius
     # the cuda-side builders for float3 data
     cuBQL_cuda_float3
     # common samples stuff
