@@ -126,3 +126,24 @@ if (CUBQL_HAVE_CUDA)
 endif()
 
 
+
+
+
+# ==================================================================
+# sample that computes a volume of NxMxK floats that each store '1' if
+# point is within a given distance of the loaded surface mesh, and '0'
+# if not. Chosen distance for this sample is 1% of scene diameter;
+# this uses the triangles::anyWithinRadius() query.
+# ==================================================================
+add_executable(test_bvhCompact
+  test_bvhCompact/compact.cu
+)
+target_link_libraries(test_bvhCompact
+  # the cuda-side builders for float3 data
+  cuBQL_cuda_float3
+  # common samples stuff
+  cuBQL_samples_common
+  stb_image
+)
+
+
