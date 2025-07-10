@@ -45,34 +45,24 @@ namespace cuBQL {
 void addToDigest(std::vector<std::pair<int,box3f>> &digest,
                  cbvh_t bvh,
                  int nodeID,
-                 int colorParent)
+                 int mineBegin,
+                 int mineCount)
 {
   auto node = bvh.nodes[nodeID];
-  for (int ci=0;ci<WIDTH;ci++) {
+  for (int ci=mineBegin;ci<mineBegin+mineCount;ci++) {
     auto child = node.children[ci];
-    if (!child.valid) continue;
-    if (child.colorChild != colorParent)
+    assert(child.valid);
     if (child.count) {
       box3f leafBox = child.bounds;
       digest.push_back({-1,leafBox});
-#if 1
       for (int li=0;li<child.count;li++) {
         int primID = bvh.primIDs[child.offset+li];
         digest.push_back({primID,leafBox});
       }
-#endif
     } else {
-      addToDigest(digest,bvh,child.offset,child.colorParent);
+      addToDigest(digest,bvh,child.offset,child.mineBegin,child.mineCount);
     }
   }
-}
-
-std::vector<std::pair<int,box3f>> computeDigest(cbvh_t bvh)
-{
-  std::vector<std::pair<int,box3f>> digest;
-  addToDigest(digest,bvh,0,/*colorparent*/0);
-  std::sort(digest.begin(),digest.end());
-  return digest;
 }
 
 
@@ -94,67 +84,95 @@ int numValid(cbvh_t cbvh, uint64_t nodeID)
   return numValid(cbvh.nodes[nodeID]);
 }
 
-int findMaxColorChild(node_t node)
-{
-  int mv =0;
-  for (int i=0;i<WIDTH;i++) {
-    auto c = node.children[i];
-    if (!c.valid) continue;
-    mv = std::max(mv,(int)c.colorChild);
-  }
-  return mv;
-}
 
-int findMaxColorChild(cbvh_t cbvh, uint64_t nodeID)
+std::vector<std::pair<int,box3f>> computeDigest(cbvh_t bvh)
 {
-  auto node = cbvh.nodes[nodeID];
-  return findMaxColorChild(node);
+  std::vector<std::pair<int,box3f>> digest;
+  addToDigest(digest,bvh,0,/*colorparent*/0,numValid(bvh,0));
+  std::sort(digest.begin(),digest.end());
+  return digest;
 }
+// int findMaxColorChild(node_t node)
+// {
+//   int mv =0;
+//   for (int i=0;i<WIDTH;i++) {
+//     auto c = node.children[i];
+//     if (!c.valid) continue;
+//     mv = std::max(mv,(int)c.colorChild);
+//   }
+//   return mv;
+// }
+
+// int findMaxColorChild(cbvh_t cbvh, uint64_t nodeID)
+// {
+//   auto node = cbvh.nodes[nodeID];
+//   return findMaxColorChild(node);
+// }
 
 
 bool findMergablePair(cbvh_t cbvh, node_t &node, int &a, int &b)
 {
   a = b = -1;
-  // std::cout << "findmergerable" << std::endl;
-  std::vector<std::pair<int,int>> candidates;
-  for (int i=0;i<WIDTH;++i) {
-    if (!node.children[i].valid) continue;
-    if (node.children[i].count > 0) continue;
+  int best = 0;
+  for (int ia=0;ia<WIDTH;ia++) {
+    auto ca = node.children[ia];
+    if (!ca.valid) continue;
+    if (ca.count > 0) continue;
+    int cnt_a = numValid(cbvh,ca.offset);
+    
+    for (int ib=ia+1;ib<WIDTH;ib++) {
+      auto cb = node.children[ib];
+      if (!cb.valid) continue;
+      if (cb.offset == ca.offset) continue;
+      if (cb.count > 0) continue;
 
-    // std::cout << " child " << i << " " << node.children[i].offset << ","
-    //           << node.children[i].count
-    //           << " val " << (int)node.children[i].valid
-    //           << std::endl;
-    candidates.push_back(std::pair<int,int>{numValid(cbvh,node.children[i].offset),i});
-  }
-  std::sort(candidates.begin(),candidates.end());
-
-  int cur = candidates.size()-1;
-  int mrg;
-  while (cur > 0) {
-    mrg = cur-1;
-    while(mrg >= 0) {
-      int cur_ofs = node.children[candidates[cur].second].offset;
-      int cur_cnt = numValid(cbvh,cur_ofs);
-
-      int mrg_ofs = node.children[candidates[mrg].second].offset;
-      int mrg_cnt = numValid(cbvh,mrg_ofs);
-
-      if (cur_cnt + mrg_cnt > WIDTH || cur_ofs == mrg_ofs) {
-        --mrg;
-        continue;
+      int cnt_b = numValid(cbvh,cb.offset);
+      if (cnt_a + cnt_b <= WIDTH && cnt_a + cnt_b > best) {
+        a = ia;
+        b = ib;
+        best = cnt_a + cnt_b;
       }
-
-      a = candidates[cur].second;
-      b = candidates[mrg].second;
-      return true;
     }
-    --cur;
   }
-  return false;
-}
+  return best > 0;
+  // // std::cout << "findmergerable" << std::endl;
+  // std::vector<std::pair<int,int>> candidates;
+  // for (int i=0;i<WIDTH;++i) {
+  //   if (!node.children[i].valid) continue;
+  //   if (node.children[i].count > 0) continue;
 
-std::vector<int> killedNodes;
+  //   // std::cout << " child " << i << " " << node.children[i].offset << ","
+  //   //           << node.children[i].count
+  //   //           << " val " << (int)node.children[i].valid
+  //   //           << std::endl;
+  //   candidates.push_back(std::pair<int,int>{numValid(cbvh,node.children[i].offset),i});
+  // }
+  // std::sort(candidates.begin(),candidates.end());
+
+  // int cur = candidates.size()-1;
+  // int mrg;
+  // while (cur > 0) {
+  //   mrg = cur-1;
+  //   while(mrg >= 0) {
+  //     int cur_ofs = node.children[candidates[cur].second].offset;
+  //     int cur_cnt = numValid(cbvh,cur_ofs);
+
+  //     int mrg_ofs = node.children[candidates[mrg].second].offset;
+  //     int mrg_cnt = numValid(cbvh,mrg_ofs);
+
+  //     if (cur_cnt + mrg_cnt > WIDTH || cur_ofs == mrg_ofs) {
+  //       --mrg;
+  //       continue;
+  //     }
+
+  //     a = candidates[cur].second;
+  //     b = candidates[mrg].second;
+  //     return true;
+  //   }
+  //   --cur;
+  // }
+  // return false;
+}
 
 void printNode(cbvh_t cbvh, node_t node)
 {
@@ -163,9 +181,12 @@ void printNode(cbvh_t cbvh, node_t node)
               << " ofs=" << node.children[i].offset 
               << " cnt=" << node.children[i].count 
               << " val=" << (int)node.children[i].valid
-              << " col=" << (int)node.children[i].colorParent
+              << " mbeg=" << (int)node.children[i].mineBegin
+              << " mcnt=" << (int)node.children[i].mineCount
+              // << " col=" << (int)node.children[i].colorParent
               << std::endl;
-    if (node.children[i].valid && node.children[i].count == 0) {
+    if (0 &&
+        node.children[i].valid && node.children[i].count == 0) {
       node_t nn = cbvh.nodes[node.children[i].offset];
       for (int j=0;j<WIDTH;j++) {
         if (nn.children[j].valid)
@@ -173,7 +194,7 @@ void printNode(cbvh_t cbvh, node_t node)
                   << " ofs=" << nn.children[j].offset 
                   << " cnt=" << nn.children[j].count 
                   << " val=" << (int)nn.children[j].valid
-                  << " col=" << (int)nn.children[j].colorChild
+                  // << " col=" << (int)nn.children[j].colorChild
                   << std::endl;
       }
     }
@@ -187,35 +208,23 @@ void mergeChildren(cbvh_t cbvh, node_t &node, int a, int b)
   auto cb = node.children[b];
 
   node_t &na = cbvh.nodes[ca.offset];
-  node_t &nb = cbvh.nodes[cb.offset];
+  // node_t &nb = cbvh.nodes[cb.offset];
   int writePos = numValid(cbvh,ca.offset);
-  int newColor = findMaxColorChild(na)+1;
+  // int newColor = findMaxColorChild(na)+1;
 
-  // std::cout << "----------- BEFORE" << std::endl;
-  // printNode(node);
   for (int j=0;j<WIDTH;j++) {
-    // if (j == a) continue;
-    
     auto &cj = node.children[j];
     if (!cj.valid) continue;
-    if (cj.offset != cb.offset)
-      continue;
+    if (cj.count > 0) continue;
+    if (cj.offset != cb.offset) continue;
 
-    for (int i=0;i<WIDTH;i++) {
-      auto ci = nb.children[i];
-      if (!ci.valid) continue;
-      if (ci.colorChild != cj.colorParent) continue;
-      ci.colorChild = newColor;
-      na.children[writePos++] = ci;
-    }
-    cj.colorParent = newColor;
+    node_t &nb = cbvh.nodes[cb.offset];
+    for (int i=0;i<cj.mineCount;i++) 
+      na.children[writePos+i] = nb.children[cj.mineBegin+i];
+    cj.mineBegin = writePos;
     cj.offset = ca.offset;
-    newColor++;
+    writePos += cj.mineCount;
   }
-  
-  // std::cout << "----------- AFTER" << std::endl;
-  // printNode(node);
-  killedNodes.push_back(cb.offset);
 }
   
 void compressSimple(cbvh_t cbvh, int nodeID, bool dbg)
@@ -223,7 +232,7 @@ void compressSimple(cbvh_t cbvh, int nodeID, bool dbg)
   auto &node = cbvh.nodes[nodeID];
   
   int a, b;
-#if 1
+#if 0
   for (int i=0;i<WIDTH;i++) {
     if (!node.children[i].valid) continue;
     if (node.children[i].count) continue;
@@ -236,7 +245,10 @@ void compressSimple(cbvh_t cbvh, int nodeID, bool dbg)
 #else
   // if (dbg) std::cout << "compress " << nodeID << std::endl;
   while (findMergablePair(cbvh,node,a,b)) {
+    // std::cout << "node " << nodeID << " merging " << a << " w/ " << b << std::endl;
+    // printNode(cbvh, node);
     mergeChildren(cbvh,node,a,b);
+    // printNode(cbvh, node);
   }
   for (int i=0;i<WIDTH;i++) {
     if (!node.children[i].valid) continue;
@@ -259,8 +271,8 @@ struct Merger {
     gatherDigest(0);
 
     int wa, wb;
-    while (findOne(wa,wb))
-      mergeOne(wa,wb);
+    // while (findOne(wa,wb))
+    //   mergeOne(wa,wb);
   }
 
   bool findOne(int &wa, int &wb) {
@@ -277,6 +289,7 @@ struct Merger {
     return false;
   }
 
+#if 0
   /*! merge two nodes a and b into one (a), and update all parent's
       offsets and colors to reflect that change. will also need to
       update 'parentsOf' digest */
@@ -340,7 +353,8 @@ struct Merger {
     byWidth[wb].erase(nbIt);
     byWidth[numValid(bvh,aIdx)].insert(aIdx);
   }
-
+#endif
+  
   void gatherDigest(int nodeID) {
     node_t &node = bvh.nodes[nodeID];
     byWidth[numValid(node)].insert(nodeID);
@@ -362,6 +376,10 @@ struct Merger {
 
 
 struct Stats {
+  float sahPrims = 0.f;
+  float sahNodes = 0.f;
+  float sahMulti = 0.f;
+  
   Stats(cbvh_t &cbvh) : cbvh(cbvh)
   {
     gatherActuallyUsedNodes();
@@ -373,11 +391,13 @@ struct Stats {
       numNodes++;
       nodesWithNumValid[numValid(cbvh,nodeID)]++;
     }
+    computeSAHs(0,0,numValid(cbvh,0));
   }
   
   int numNodes = 0;
   int nodesWithNumValid[WIDTH];
   void gatherActuallyUsedNodes(int nodeID=0);
+  void computeSAHs(int nodeID, int mineBegin, int mineCount);
   
   std::set<int> actuallyUsedNodes;
 
@@ -393,9 +413,31 @@ struct Stats {
     //   std::cout << "nodes with num active children = " << i << " : "
     //             << nodesWithNumValid[i] << std::endl;
     std::cout << "--> (total) " << numNodes << std::endl;
+    std::cout << "sah prim/node/multi : "
+              << "\t" << prettyDouble(sahPrims)
+              << "\t" << prettyDouble(sahNodes)
+              << "\t" << prettyDouble(sahMulti)
+              << std::endl
+              << std::endl;
+    // std::cout << "SAH (leaf) " << sahLeafNodes << "\tSAH(prims) " << sahPrims << std::endl;
   }
 };
 
+void Stats::computeSAHs(int nodeID, int mineBegin, int mineCount)
+{
+  auto &node = cbvh.nodes[nodeID];
+  // sahMulti += getBounds(node);
+  for (int i=mineBegin;i<mineBegin+mineCount;i++) {
+    auto c = node.children[i];
+    sahNodes += surfaceArea(c.bounds);
+    if (c.count) 
+      sahPrims += /*.1f * */ c.count * surfaceArea(c.bounds);
+    else {
+      computeSAHs(c.offset,c.mineBegin,c.mineCount);
+      sahMulti += surfaceArea(c.bounds) * c.mineCount;
+    }
+  }
+}
 void Stats::gatherActuallyUsedNodes(int nodeID)
 {
   actuallyUsedNodes.insert(nodeID);
@@ -671,8 +713,8 @@ node_t emptyNode()
   node_t node;
   for (int i=0;i<WIDTH;i++) {
     node.children[i].valid = 0;
-    node.children[i].colorParent = 0;
-    node.children[i].colorChild = 0;
+    node.children[i].mineBegin = 0;
+    node.children[i].mineCount = 0;
   }
   return node;
 }
@@ -713,6 +755,8 @@ struct CopyRec {
         nodes[outID].children[i].valid = 1;
         nodes[outID].children[i].count = 0;
         nodes[outID].children[i].offset = newID;
+        nodes[outID].children[i].mineBegin = 0;
+        nodes[outID].children[i].mineCount = child->inner->children.size();
         recurse(newID,child->inner);
       } else {
         nodes[outID].children[i].valid = 1;
@@ -803,10 +847,10 @@ cbvh_t buildNativeWide()
       //   PRINT(node.children[j].count);
       //   PRINT(node.children[j].bounds);
       // }
-      child.colorParent = 0;
-      child.colorChild = 0;
       if (!child.valid) continue;
-      if (child.count > 0) continue;
+      child.mineBegin = 0;
+      if (child.count == 0)
+        child.mineCount = numValid(cbvh,child.offset);
     }
   }
   return cbvh;
@@ -896,7 +940,7 @@ int main(int ac, char **av)
     throw std::runtime_error("digest_binary_collapse_td_merged does not match");
   std::cout << "#### binary build, top down collapse, after merge" << std::endl;
   {
-    Stats stats(binary_collapse_td);
+    Stats stats(binary_collapse_td_merged);
     stats.print();
   }
   

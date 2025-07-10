@@ -146,8 +146,8 @@ namespace cuBQL {
         struct {
           uint64_t valid   :  1;
           uint64_t offset  : 37;
-          uint64_t colorParent:  4;
-          uint64_t colorChild :  4;
+          uint64_t mineBegin:  4;
+          uint64_t mineCount :  4;
           uint64_t count   : 16;
         };
       } children[BVH_WIDTH];
