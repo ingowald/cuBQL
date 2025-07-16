@@ -1,18 +1,5 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 /*! \file samples/closestPointOnTrianglesSurface Simple example of
     building bvhes over, and quering closest points on, sets of 3D
@@ -32,8 +19,9 @@
 
 // cuBQL:
 #define CUBQL_GPU_BUILDER_IMPLEMENTATION 1
+#define CUBQL_TRIANGLE_CPAT_IMPLEMENTATION 1
 #include "cuBQL/bvh.h"
-#include "cuBQL/queries/triangles/findClosest.h"
+#include "cuBQL/queries/triangleData/closestPointOnAnyTriangle.h"
 #include "samples/common/loadOBJ.h"
 
 // std:
@@ -88,23 +76,22 @@ void runQueries(bvh3f           trianglesBVH,
   
   vec3f queryPoint = worldBounds.lerp(vec3f(t));
   
-  cuBQL::triangles::FCPResult result;
-  result.clear(INFINITY);
+  cuBQL::triangles::CPAT cpat;
 
-  cuBQL::triangles::findClosest(result,
-                                trianglesBVH,triangles,
-                                queryPoint);
+  cpat.runQuery(triangles,
+                trianglesBVH,
+                queryPoint);
 
   printf("[%i] closest surface point to point (%f %f %f) is on triangle %i, at (%f %f %f), and %f units away\n",
          tid,
          queryPoint.x,
          queryPoint.y,
          queryPoint.z,
-         result.primID,
-         result.P.x,
-         result.P.y,
-         result.P.z,
-         sqrtf(result.sqrDist));
+         cpat.triangleIdx,
+         cpat.P.x,
+         cpat.P.y,
+         cpat.P.z,
+         sqrtf(cpat.sqrDist));
 }
 
 

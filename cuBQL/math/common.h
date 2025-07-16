@@ -1,18 +1,5 @@
-// ======================================================================== //
-// Copyright 2023-2023 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
@@ -389,4 +376,29 @@ namespace cuBQL {
     }                                                                   \
   }
 #endif
+
+
+
+namespace cuBQL {
+  struct dbgout {
+    static constexpr const char *const endl = "\n";
+  };
+  static constexpr const char *const endl = "\n";
+  static constexpr dbgout dout = {};
+  inline __cubql_both dbgout operator<<(dbgout o, const char *s)
+  { printf("%s",s); return o; }
+  
+  inline __cubql_both dbgout operator<<(dbgout o, int32_t i)
+  { printf("%i",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, uint32_t i)
+  { printf("%i",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, float f)
+  { printf("%f",f); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
+  { printf("%li",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
+  { printf("%li",i); return o; }
+  
+};
+
 

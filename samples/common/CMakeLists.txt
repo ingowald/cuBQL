@@ -22,6 +22,8 @@ add_library(cuBQL_samples_common
   tiny_obj_loader.h
   loadOBJ.h
   loadOBJ.cpp
+  loadBinMesh.h
+  loadBinMesh.cpp
   )
 target_link_libraries(cuBQL_samples_common
   PUBLIC

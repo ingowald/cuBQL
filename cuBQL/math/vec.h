@@ -19,11 +19,10 @@
 #include "cuBQL/math/math.h"
 #include <type_traits>
 #include <limits>
-#ifdef __CUDACC__
-#include <cuda/std/limits>
-#endif
-
 #include "constants.h"
+#ifdef __CUDACC__
+# include <cuda.h>
+#endif
 
 #ifdef _MSC_VER
 # define CUBQL_PRAGMA_UNROLL /* nothing */
@@ -37,14 +36,6 @@ namespace cuBQL {
   using std::min;
   using std::max;
 #endif
-
-#ifdef __CUDACC__
-# define CUBQL_INF ::cuda::std::numeric_limits<float>::infinity()
-#else
-# define CUBQL_INF std::numeric_limits<float>::infinity()
-#endif
-  
-
   
   template<typename /* scalar type */T, int /*! dimension */D>
   struct vec_t_data {
@@ -97,6 +88,10 @@ namespace cuBQL {
     inline __cubql_both T &operator[](int i)       { return i?y:x; }
     /*! auto-cast to equivalent cuda type */
     inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; return t; }
+#ifdef __CUDACC__
+    /*! allow to typecast that to a dim3, so it can be used as a cuda kernel launch dim */
+    inline __cubql_both operator dim3() { dim3 t; t.x = x; t.y = y; t.z = 1; return t; }
+#endif    
     T x, y;
   };
   template<typename T>
@@ -106,7 +101,11 @@ namespace cuBQL {
     inline __cubql_both T  operator[](int i) const { return (i==2)?z:(i?y:x); }
     inline __cubql_both T &operator[](int i)       { return (i==2)?z:(i?y:x); }
     /*! auto-cast to equivalent cuda type */
-    inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; return t; }
+    inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; t.z = z; return t; }
+#ifdef __CUDACC__
+    /*! allow to typecast that to a dim3, so it can be used as a cuda kernel launch dim */
+    inline __cubql_both operator dim3() { dim3 t; t.x = x; t.y = y; t.z = z; return t; }
+#endif    
     T x, y, z;
   };
   template<typename T>
@@ -444,7 +443,15 @@ namespace cuBQL {
   CUBQL_BINARY(max)
 #undef CUBQL_FUNCTOR
 
-
+  template<typename T, int D>
+  vec_t<T,D> divRoundUp(vec_t<T,D> a, vec_t<T,D> b)
+  {
+    vec_t<T,D> r;
+    for (int i=0;i<D;i++)
+      r[i] = divRoundUp(a[i],b[i]);
+    return r;
+  }
+  
   /*! host-side equivalent(s) of various cuda functions */
   namespace host {
     inline float __ull2float_rd(uint64_t ul) {
@@ -681,10 +688,15 @@ namespace cuBQL {
   std::string vec_t<T,4>::typeName()
   { return cuBQL::toString<T>()+std::to_string(4); }
 
-template<typename T, int D>
-inline T distance(vec_t<T,D> a, vec_t<T,D> b)
-{ return sqrtf(dot(b-a,b-a)); }
+  template<typename T, int D>
+  inline T distance(vec_t<T,D> a, vec_t<T,D> b)
+  { return sqrtf(dot(b-a,b-a)); }
 
+
+  template<typename T>
+  inline __cubql_both dbgout operator<<(dbgout o, vec_t<T,3> v)
+  { o << "(" << v.x << "," << v.y << "," << v.z << ")"; return o; }
+  
   /*! @} */
   // ------------------------------------------------------------------
   

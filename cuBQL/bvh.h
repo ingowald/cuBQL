@@ -1,18 +1,5 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this fle except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
@@ -140,6 +127,40 @@ namespace cuBQL {
     uint32_t  numPrims = 0;
   };
 
+
+  /*! a 'wide' BVH in which each node has a fixed number of
+    `BVH_WIDTH` children (some of those children can be un-used) */
+  template<typename _scalar_t, int _numDims, int BVH_WIDTH>
+  struct CWideBVH {
+    using scalar_t = _scalar_t;
+    enum { numDims = _numDims };
+    using vec_t = cuBQL::vec_t<scalar_t,numDims>;
+    using box_t = cuBQL::box_t<scalar_t,numDims>;
+
+    /*! a n-wide node of this BVH; note that unlike BinaryBVH::Node
+      this is not a "single" node, but actually N nodes merged
+      together */
+    struct CUBQL_ALIGN(16) Node {
+      struct CUBQL_ALIGN(16) Child {
+        box_t    bounds;
+        struct {
+          uint64_t valid   :  1;
+          uint64_t offset  : 37;
+          uint64_t mineBegin:  4;
+          uint64_t mineCount :  4;
+          uint64_t count   : 16;
+        };
+      } children[BVH_WIDTH];
+    };
+
+    Node     *nodes    = 0;
+    //! number of (multi-)nodes on this WideBVH
+    uint32_t  numNodes = 0;
+    uint32_t *primIDs  = 0;
+    uint32_t  numPrims = 0;
+  };
+
+
   template<typename T, int D>
   using bvh_t = BinaryBVH<T,D>;
 
@@ -154,6 +175,11 @@ namespace cuBQL {
 #endif
   
 } // ::cuBQL
+
+#ifdef __CUDACC__
+# include "cuBQL/builder/cuda.h"
+#endif
+# include "cuBQL/builder/cpu.h"
 
 
 

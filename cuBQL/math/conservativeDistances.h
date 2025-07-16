@@ -1,18 +1,5 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 /*! \file cuBQL/math/conservativeDistances.h Implements various helper functions to compute distances with well defined conservative rounding modes.
 
@@ -118,5 +105,167 @@ namespace cuBQL {
     vec_t<T,D> diff = max(vec_t<T,D>((T)0),lo-hi);
     return fSqrLength_rd(diff);
   }
+
+
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec2f point, box2f box)
+    {
+      vec2f projected = min(max(point,box.lower),box.upper);
+      vec2f v = projected - point;
+      return dot(v,v);
+    }
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec3f point, box3f box)
+    {
+      vec3f projected = min(max(point,box.lower),box.upper);
+      vec3f v = projected - point;
+      return dot(v,v);
+    }
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec4f point, box4f box)
+    {
+      vec4f projected = min(max(point,box.lower),box.upper);
+      vec4f v = projected - point;
+      return dot(v,v);
+    }
+
+
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec2i point, box2i box)
+    {
+      vec2i projected = min(max(point,box.lower),box.upper);
+      vec2i v = projected - point;
+#ifdef __CUDA_ARCH__
+      return __ll2float_rd(dot(v,v));
+#else
+      return host::__ull2float_rd(dot(v,v));
+#endif
+    }
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec3i point, box3i box)
+    {
+      vec3i projected = min(max(point,box.lower),box.upper);
+      vec3i v = projected - point;
+#ifdef __CUDA_ARCH__
+      return __ll2float_rd(dot(v,v));
+#else
+      return host::__ull2float_rd(dot(v,v));
+#endif
+    }
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec4i point, box4i box)
+    {
+      vec4i projected = min(max(point,box.lower),box.upper);
+      vec4i v = projected - point;
+#ifdef __CUDA_ARCH__
+      return __ll2float_rd(dot(v,v));
+#else
+      return host::__ull2float_rd(dot(v,v));
+#endif
+    }
+
+
+
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec2d point, box2d box)
+    {
+      vec2d projected = min(max(point,box.lower),box.upper);
+      vec2d v = projected - point;
+#ifdef __CUDA_ARCH__
+      return __ll2float_rd(dot(v,v));
+#else
+      return host::__udouble2float_rd(dot(v,v));
+#endif
+    }
+    
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec3d point, box3d box)
+    {
+      vec3d projected = min(max(point,box.lower),box.upper);
+      vec3d v = projected - point;
+#ifdef __CUDA_ARCH__
+      return __double2float_rd(dot(v,v));
+#else
+      return host::__udouble2float_rd(dot(v,v));
+#endif
+    }
+    
+    /*! compute square distance with round-down where necessary. Use
+      this in traversal query-to-node distance checks, because the
+      rounding down will mean we'll only ever, if anything,
+      _under_estimate the distance to the node, and thus never wrongly
+      cull any subtrees) */
+    inline __cubql_both
+    float fSqrDistance_rd(vec4d point, box4d box)
+    {
+      vec4d projected = min(max(point,box.lower),box.upper);
+      vec4d v = projected - point;
+#ifdef __CUDA_ARCH__
+      return __double2float_rd(dot(v,v));
+#else
+      return host::__udouble2float_rd(dot(v,v));
+#endif
+    }
+
+    template<int D>
+    inline __cubql_both
+    float fSqrDistance_rd(vec_t<long long int, D> a,
+                          vec_t<long long int, D> b)
+    {
+      float sum = 0.f;
+      for (int i=0;i<D;i++) {
+        long long lo = min(a[i],b[i]);
+        long long hi = max(a[i],b[i]);
+        unsigned long long diff = hi - lo;
+#ifdef __CUDA_ARCH__
+        float fDiff = __ll2float_rd(diff);
+#else
+        float fDiff = host::__ull2float_rd(diff);
+#endif
+        sum += fDiff*fDiff;
+      }
+      return sum;
+    }
+    
   
 }
