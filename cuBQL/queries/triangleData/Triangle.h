@@ -78,5 +78,9 @@ namespace cuBQL {
     return (1.f-u-v)*a + u * b + v * c;
   }
 
+  inline __cubql_both dbgout operator<<(dbgout o, const Triangle &triangle)
+  { o << "{" << triangle.a << "," << triangle.b << "," << triangle.c << "}"; return o; }
+  
+  
 } // ::cuBQL
 

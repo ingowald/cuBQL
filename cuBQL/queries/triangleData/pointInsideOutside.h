@@ -28,7 +28,8 @@ namespace cuBQL {
     inline __cubql_both
     bool pointIsInsideSurface(bvh3f bvh,
                               const GetTriangleLambda getTriangle,
-                              vec3f queryPoint);
+                              vec3f queryPoint,
+                              bool dbg=false);
 
     // =============================================================================
     // *** IMPLEMENTATION ***
@@ -38,7 +39,8 @@ namespace cuBQL {
     inline __cubql_both
     bool pointIsInsideSurface(bvh3f bvh,
                               const GetTriangleLambda getTriangle,
-                              vec3f queryPoint)
+                              vec3f queryPoint,
+                              bool dbg)
     {
       /*! we trace 6 rays - one per principle axis - using the
         AxisAlignedRay rayquery. In theory, if the mesh is closed then
@@ -46,14 +48,16 @@ namespace cuBQL {
         some holes or double counting when rays going right through
         vertices or edges, so we just trace one ray in each direction
         and take a majority vote. */
-      int numIn = 0;
-      numIn += signedCrossingCount(bvh,getTriangle,AxisAlignedRay<0,-1>(queryPoint));
-      numIn += signedCrossingCount(bvh,getTriangle,AxisAlignedRay<0,+1>(queryPoint));
-      numIn += signedCrossingCount(bvh,getTriangle,AxisAlignedRay<1,-1>(queryPoint));
-      numIn += signedCrossingCount(bvh,getTriangle,AxisAlignedRay<1,+1>(queryPoint));
-      numIn += signedCrossingCount(bvh,getTriangle,AxisAlignedRay<2,-1>(queryPoint));
-      numIn += signedCrossingCount(bvh,getTriangle,AxisAlignedRay<2,+1>(queryPoint));
-      return /* take a majority vote ... */numIn > 3;
+      int n0 = signedCrossingCount(bvh,getTriangle,AxisAlignedRay<0,-1>(queryPoint),dbg);
+      int p0 = signedCrossingCount(bvh,getTriangle,AxisAlignedRay<0,+1>(queryPoint),dbg);
+      int n1 = signedCrossingCount(bvh,getTriangle,AxisAlignedRay<1,-1>(queryPoint),dbg);
+      int p1 = signedCrossingCount(bvh,getTriangle,AxisAlignedRay<1,+1>(queryPoint),dbg);
+      int n2 = signedCrossingCount(bvh,getTriangle,AxisAlignedRay<2,-1>(queryPoint),dbg);
+      int p2 = signedCrossingCount(bvh,getTriangle,AxisAlignedRay<2,+1>(queryPoint),dbg);
+      int numIn = p0+p1+p2+n0+n1+n2;
+      if (dbg) printf("inside results %i %i %i %i %i %i\n",
+                      n0,n1,n2,p0,p1,p2);
+      return /* take a majority vote ... */numIn > 3; // == 3;//> 3;
     }
     
   } // ::cuBQL::triangles

@@ -137,6 +137,8 @@ namespace cuBQL {
     {
       // reset to defaults
       *this = {0,0};
+      if (dbg)
+        printf("#####################\ncrossing count query axis %i sign %i\n",axis,sign);
       auto perPrimCode = [getTriangle,this,queryRay,dbg](uint32_t triangleIdx)->int {
         const Triangle triangle = getTriangle(triangleIdx);
 #if 1
@@ -164,11 +166,12 @@ namespace cuBQL {
     inline __cubql_both
     int signedCrossingCount(bvh3f bvh,
                             GetTriangleLambda getTriangle,
-                            AxisAlignedRay<axis,sign> queryRay)
+                            AxisAlignedRay<axis,sign> queryRay,
+                            bool dbg=false)
     {
       CrossingCount cc;
       // AxisAlignedRay<axis,sign> queryRay(queryPoint,0.f,+CUBQL_INF);
-      cc.runQuery(bvh,getTriangle,queryRay);
+      cc.runQuery(bvh,getTriangle,queryRay,dbg);
       return cc.crossingCount;
     }
     

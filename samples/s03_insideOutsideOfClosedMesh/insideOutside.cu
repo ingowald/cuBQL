@@ -25,7 +25,7 @@ __global__ void d_computeVolume(float   *d_result,
   int iy = threadIdx.y+blockIdx.y*blockDim.y; if (iy >= dims.y) return;
   int iz = threadIdx.z+blockIdx.z*blockDim.z; if (iz >= dims.z) return;
 
-  bool dbg =  vec3i(ix,iy,iz) == vec3i(128,40,100);//dims/2;
+  bool dbg =  vec3i(ix,iy,iz) == vec3i(6,83,89);//dims/2;
   
   vec3f f = (vec3f(ix,iy,iz)+.5f) / vec3f(dims);
   vec3f P = (1.f-f)*worldBounds.lower + f*worldBounds.upper;
@@ -36,7 +36,9 @@ __global__ void d_computeVolume(float   *d_result,
     return Triangle{d_vertices[idx.x],d_vertices[idx.y],d_vertices[idx.z]};
   };
 
-  bool inside = cuBQL::triangles::pointIsInsideSurface(bvh,getTriangle,P);
+  bool inside = cuBQL::triangles::pointIsInsideSurface(bvh,getTriangle,P// ,dbg
+                                                       );
+  // if (inside) printf(" bug %i %i %i\n",ix,iy,iz);
   d_result[ix+iy*dims.x+iz*dims.x*dims.y] = (float)inside;
 }
 
