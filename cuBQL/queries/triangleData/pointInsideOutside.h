@@ -57,6 +57,11 @@ namespace cuBQL {
       int numIn = p0+p1+p2+n0+n1+n2;
       if (dbg) printf("inside results %i %i %i %i %i %i\n",
                       n0,n1,n2,p0,p1,p2);
+
+      // if (numIn != 0 && numIn != 6) {
+      //   printf("disagreement: inside results %i %i %i %i %i %i\n",
+      //          n0,n1,n2,p0,p1,p2);
+      // }
       return /* take a majority vote ... */numIn > 3; // == 3;//> 3;
     }
     
