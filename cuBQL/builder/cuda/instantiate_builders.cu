@@ -17,6 +17,7 @@
 /*! instantiates the GPU builder(s) */
 #define CUBQL_GPU_BUILDER_IMPLEMENTATION 1
 #include "cuBQL/bvh.h"
+#include "cuBQL/builder/cuda.h"
 #include "cuBQL/builder/cuda/radix.h"
 #include "cuBQL/builder/cuda/rebinMortonBuilder.h"
 

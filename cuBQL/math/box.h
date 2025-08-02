@@ -257,5 +257,10 @@ namespace cuBQL {
   template<typename T, int D>
   std::ostream &operator<<(std::ostream &o, const box_t<T,D> &box)
   { o << "{" << box.lower << "," << box.upper << "}"; return o; }
+
+  template<typename T, int D>
+  inline __cubql_both dbgout operator<<(dbgout o, const box_t<T,D> &box)
+  { o << "{" << box.lower << "," << box.upper << "}"; return o; }
+  
 }
 

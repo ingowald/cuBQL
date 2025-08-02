@@ -1,22 +1,13 @@
-// ======================================================================== //
-// Copyright 2023-2023 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include "cuBQL/math/common.h"
+#ifdef __CUDACC__
+#include <cuda/std/limits>
+#endif
+#include <limits>
 
 namespace cuBQL {
   
@@ -29,8 +20,23 @@ namespace cuBQL {
   using std::min;
   using std::max;
 #endif
+
+#ifdef __CUDA_ARCH__
+# define CUBQL_INF ::cuda::std::numeric_limits<float>::infinity()
+#else
+# define CUBQL_INF std::numeric_limits<float>::infinity()
+#endif
+
+#ifdef __CUDA_ARCH__
+#else
+    inline float __int_as_float(int i) { return (const float &)i; }
+    inline int __float_as_int(float f) { return (const int &)f; }
+#endif
+
+  inline __cubql_both float squareOf(float f) { return f*f; }
   
-  template<int N> struct log_of;
+  
+  template<int N> struct log_of { enum { value = -1 }; };
   template<> struct log_of< 2> { enum { value = 1 }; };
   template<> struct log_of< 4> { enum { value = 2 }; };
   template<> struct log_of< 8> { enum { value = 3 }; };

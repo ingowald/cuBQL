@@ -1,5 +1,5 @@
 // ======================================================================== //
-// Copyright 2024-2024 Ingo Wald                                            //
+// Copyright 2025-2025 Ingo Wald                                            //
 //                                                                          //
 // Licensed under the Apache License, Version 2.0 (the "License");          //
 // you may not use this file except in compliance with the License.         //
@@ -14,36 +14,20 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
-/*! \file cuBQL/triangles/Triangle.h Defines a generic triangle type and
-    some operations thereon, that various queries can then build on */
-
 #pragma once
 
-#include "cuBQL/math/vec.h"
-#include "cuBQL/math/box.h"
+#include <cuBQL/math/box.h>
+#include <cuBQL/queries/triangleData/Triangle.h>
+#include <vector>
 
 namespace cuBQL {
-  
-  struct Triangle {
-    /*! returns an axis aligned bounding box enclosing this triangle */
-    inline __cubql_both box3f bounds() const;
-    inline __cubql_both vec3f sample(float u, float v) const;
+  namespace samples {
     
-    vec3f a, b, c;
-  };
-
-  inline __cubql_both box3f Triangle::bounds() const
-  { return box3f().including(a).including(b).including(c); }
-
-  inline __cubql_both float area(Triangle tri)
-  { return length(cross(tri.b-tri.a,tri.c-tri.a)); }
-
-  inline __cubql_both vec3f Triangle::sample(float u, float v) const
-  {
-    if (u+v >= 1.f) { u = 1.f-u; v = 1.f-v; }
-    return (1.f-u-v)*a + u * b + v * c;
+    std::vector<Triangle> loadBinMesh(const std::string &fileName);
+    
+    void loadBinMesh(std::vector<vec3i> &indices,
+                     std::vector<vec3f> &vertices,
+                     const std::string &fileName);
   }
-    
-
-} // cuBQL
+}
 

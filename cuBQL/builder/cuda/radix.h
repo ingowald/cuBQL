@@ -27,7 +27,7 @@ namespace cuBQL {
     template<typename T, int D> struct Quantizer;
 
     template<int D> struct numMortonBits;
-#if 1
+#if 0
     template<> struct numMortonBits<2> { enum { value = 31 }; };
     template<> struct numMortonBits<3> { enum { value = 21 }; };
     template<> struct numMortonBits<4> { enum { value = 15 }; };
@@ -663,6 +663,7 @@ namespace cuBQL {
       uint32_t *d_primIDs_inMortonOrder = 0;
       // with tempMem ptr null this won't do anything but return reqd
       // temp size*/
+      auto rc =
       cub::DeviceRadixSort::SortPairs
         (nullptr,cub_tempMemSize,
          /*keys in:*/   d_primKeys_unsorted,
@@ -678,6 +679,7 @@ namespace cuBQL {
       _ALLOC(d_primIDs_inMortonOrder,numValidPrims,s,memResource);
 
       // 2.4: sort
+      rc = 
       cub::DeviceRadixSort::SortPairs
         (d_tempMem,cub_tempMemSize,
          /*keys in:*/   d_primKeys_unsorted,
@@ -685,7 +687,7 @@ namespace cuBQL {
          /*values in:*/ d_primIDs_unsorted,
          /*values out:*/d_primIDs_inMortonOrder,
          numValidPrims,0,64,s);
-
+      rc = rc;
       // 2.5 - cleanup after sort: no longer need tempmem, or unsorted inputs
       _FREE(d_primKeys_unsorted,s,memResource);
       _FREE(d_primIDs_unsorted,s,memResource);

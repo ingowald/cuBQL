@@ -1,22 +1,15 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
 #include "cuBQL/builder/cuda/builder_common.h"
+
+#ifdef __HIPCC__
+namespace cub {
+  using namespace hipcub;
+}
+#endif
 
 namespace cuBQL {
   namespace gpuBuilder_impl {
@@ -569,15 +562,18 @@ namespace cuBQL {
       t_sortPrims.sync_start();
 #endif
       _ALLOC(sortedPrimStates,numPrims,s,memResource);
-      cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
+      auto rc =
+        cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
       _ALLOC(d_temp_storage,temp_storage_bytes,s,memResource);
-      cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
-                                     (uint64_t*)primStates,
-                                     (uint64_t*)sortedPrimStates,
-                                     numPrims,32,64,s);
+      rc =
+        cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
+                                       (uint64_t*)primStates,
+                                       (uint64_t*)sortedPrimStates,
+                                       numPrims,32,64,s);
+      rc = rc;
       _FREE(d_temp_storage,s,memResource);
 #if CUBQL_PROFILE
       t_sortPrims.sync_stop();

@@ -126,7 +126,7 @@ namespace cuBQL {
       int nodeStack[5], *stackPtr = nodeStack;
       int binaryRoot = d_infos[tid].binaryRoot;
       *stackPtr++ = binaryRoot;
-
+      
       typename WideBVH<T,D,N>::Node &target = wideBVH.nodes[tid];
       int numWritten = 0;
       while (stackPtr > nodeStack) {
@@ -169,7 +169,6 @@ namespace cuBQL {
                     cudaStream_t       s,
                     GpuMemoryResource &memResource)
     {
-      
       BinaryBVH<T,D> binaryBVH;
       gpuBuilder(binaryBVH,boxes,numBoxes,buildConfig,s,memResource);
 
@@ -177,10 +176,9 @@ namespace cuBQL {
       CollapseInfo *d_infos;
       _ALLOC(d_numWideNodes,1,s,memResource);
       _ALLOC(d_infos,binaryBVH.numNodes,s,memResource);
-    
+      // cudaMemset(d_infos,0,binaryBVH.numNodes*sizeof(*d_infos));
       collapseInit<<<divRoundUp((int)binaryBVH.numNodes,1024),1024,0,s>>>
         (d_numWideNodes,d_infos,binaryBVH);
-
       collapseSummarize<T,D,N><<<divRoundUp((int)binaryBVH.numNodes,1024),1024,0,s>>>
         (d_numWideNodes,d_infos,binaryBVH);
       CUBQL_CUDA_CALL(StreamSynchronize(s));

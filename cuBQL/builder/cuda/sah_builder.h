@@ -18,18 +18,17 @@
 
 #include "cuBQL/builder/cuda/sm_builder.h"
 
-# ifdef CUBQL_GPU_BUILDER_IMPLEMENTATION
 namespace cuBQL {
   namespace sahBuilder_impl {
-    using gpuBuilder_impl::AtomicBox;
-    using gpuBuilder_impl::PrimState;
-    using gpuBuilder_impl::NodeState;
-    using gpuBuilder_impl::BuildState;
-    using gpuBuilder_impl::OPEN_NODE;
-    using gpuBuilder_impl::DONE_NODE;
-    using gpuBuilder_impl::OPEN_BRANCH;
-    using gpuBuilder_impl::_ALLOC;
-    using gpuBuilder_impl::_FREE;
+    using ::cuBQL::gpuBuilder_impl::AtomicBox;
+    using ::cuBQL::gpuBuilder_impl::PrimState;
+    using ::cuBQL::gpuBuilder_impl::NodeState;
+    using ::cuBQL::gpuBuilder_impl::BuildState;
+    using ::cuBQL::gpuBuilder_impl::OPEN_NODE;
+    using ::cuBQL::gpuBuilder_impl::DONE_NODE;
+    using ::cuBQL::gpuBuilder_impl::OPEN_BRANCH;
+    using ::cuBQL::gpuBuilder_impl::_ALLOC;
+    using ::cuBQL::gpuBuilder_impl::_FREE;
     
     struct CUBQL_ALIGN(16) TempNode {
       union {
@@ -173,7 +172,7 @@ namespace cuBQL {
 
       auto &sah = sahBins[nodeID-sahNodeBegin];
       box3f centBounds = nodes[nodeID].openBranch.centBounds.make_box();
-#pragma unroll(3)
+#pragma unroll 3 
       for (int d=0;d<3;d++) {
         int bin = 0;
         float lo = centBounds.get_lower(d);
@@ -183,8 +182,8 @@ namespace cuBQL {
           float rel
             = (prim_d - centBounds.get_lower(d))
             / (centBounds.get_upper(d)-centBounds.get_lower(d)+1e-20f);
-          bin = int(rel*SAHBins::numBins);
-          bin = max(0,min(SAHBins::numBins-1,bin));
+          bin = int(rel*(int)SAHBins::numBins);
+          bin = max(0,min((int)SAHBins::numBins-1,bin));
           // printf("prim %i in node %i, pos %f %f %f in cent %f %f %f - %f %f %f; dim %i: rel %f bin %i\n",
           //        primID,nodeID,
           //        primBox.lower.x,
@@ -315,8 +314,8 @@ namespace cuBQL {
       float rel
         = (prim_d - lo)
         / (hi - lo + 1e-20f);
-      int prim_bin = int(rel*SAHBins::numBins);
-      prim_bin = max(0,min(SAHBins::numBins-1,prim_bin));
+      int prim_bin = int(rel*(int)SAHBins::numBins);
+      prim_bin = max(0,min((int)SAHBins::numBins-1,prim_bin));
       
       int side = (prim_bin >= open.bin);
       // printf("updateprim %i node %i state %i dim %i bin %i -> prim bin %i -> side %i\n",
@@ -498,15 +497,18 @@ namespace cuBQL {
       size_t     temp_storage_bytes = 0;
       PrimState *sortedPrimStates;
       _ALLOC(sortedPrimStates,numPrims,s,memResource);
+      auto rc =
       cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
       _ALLOC(d_temp_storage,temp_storage_bytes,s,memResource);
+      rc =
       cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
+      rc = rc; // ignore 'unused' warning
       CUBQL_CUDA_CALL(StreamSynchronize(s));
       _FREE(d_temp_storage,s,memResource);
       // ==================================================================
@@ -550,5 +552,4 @@ namespace cuBQL {
     }
   } // ::cuBQL::cuda
 } // ::cuBQL
-#endif
 

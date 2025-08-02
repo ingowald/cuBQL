@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cuBQL/math/box.h>
-#include <cuBQL/queries/triangles/Triangle.h>
+#include <cuBQL/queries/triangleData/Triangle.h>
 #include <vector>
 
 namespace cuBQL {

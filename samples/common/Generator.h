@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "cuBQL/queries/triangles/Triangle.h"
+#include "cuBQL/queries/triangleData/Triangle.h"
 #include "samples/common/IO.h"
 
 namespace cuBQL {

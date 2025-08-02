@@ -1,18 +1,5 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this fle except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
@@ -140,6 +127,7 @@ namespace cuBQL {
     uint32_t  numPrims = 0;
   };
 
+
   template<typename T, int D>
   using bvh_t = BinaryBVH<T,D>;
 
@@ -151,16 +139,15 @@ namespace cuBQL {
   typedef BinaryBVH<float,2> bvh_float2;
   typedef BinaryBVH<float,3> bvh_float3;
   typedef BinaryBVH<float,4> bvh_float4;
-  // using bvh_float2 = BinaryBVH<float,2>;
-  // using bvh_float3 = BinaryBVH<float,3>;
-  // using bvh_float4 = BinaryBVH<float,4>;
 #endif
   
 } // ::cuBQL
 
 #ifdef __CUDACC__
-#include "cuBQL/builder/cuda.h"
+# include "cuBQL/builder/cuda.h"
 #endif
+# include "cuBQL/builder/cpu.h"
+
 
 
   
