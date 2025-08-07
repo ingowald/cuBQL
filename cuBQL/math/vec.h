@@ -36,6 +36,10 @@ namespace cuBQL {
   using std::min;
   using std::max;
 #endif
+
+#ifndef CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+#define CUBQL_SUPPORT_CUDA_VECTOR_TYPES 0
+#endif
   
   template<typename /* scalar type */T, int /*! dimension */D>
   struct vec_t_data {
@@ -69,6 +73,7 @@ namespace cuBQL {
   struct CUBQL_ALIGN(16) double4 { double x, y, z, w; };
 #endif
   
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
   template<typename T, int D> struct cuda_eq_t { using type = invalid_t; };
   template<> struct cuda_eq_t<float,2> { using type = float2; };
   template<> struct cuda_eq_t<float,3> { using type = float3; };
@@ -78,16 +83,19 @@ namespace cuBQL {
   template<> struct cuda_eq_t<int,4> { using type = int4; };
   template<> struct cuda_eq_t<double,2> { using type = double2; };
   template<> struct cuda_eq_t<double,3> { using type = double3; };
-  template<> struct cuda_eq_t<double,4> { using type = double4; };
-
+  template<> struct cuda_eq_t<double,4> { using type = double4; }; 
+#endif
+  
   template<typename T>
   struct vec_t_data<T,2> {
-    using cuda_t = typename cuda_eq_t<T,2>::type;
     inline __cubql_both T         get(int i) const { return i?y:x; }
     inline __cubql_both T  operator[](int i) const { return i?y:x; }
     inline __cubql_both T &operator[](int i)       { return i?y:x; }
     /*! auto-cast to equivalent cuda type */
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_t = typename cuda_eq_t<T,2>::type;
     inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; return t; }
+#endif
 #ifdef __CUDACC__
     /*! allow to typecast that to a dim3, so it can be used as a cuda kernel launch dim */
     inline __cubql_both operator dim3() { dim3 t; t.x = x; t.y = y; t.z = 1; return t; }
@@ -96,26 +104,30 @@ namespace cuBQL {
   };
   template<typename T>
   struct vec_t_data<T,3> {
-    using cuda_t = typename cuda_eq_t<T,3>::type;
     inline __cubql_both T         get(int i) const { return (i==2)?z:(i?y:x); }
     inline __cubql_both T  operator[](int i) const { return (i==2)?z:(i?y:x); }
     inline __cubql_both T &operator[](int i)       { return (i==2)?z:(i?y:x); }
     /*! auto-cast to equivalent cuda type */
-    inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; t.z = z; return t; }
 #ifdef __CUDACC__
     /*! allow to typecast that to a dim3, so it can be used as a cuda kernel launch dim */
     inline __cubql_both operator dim3() { dim3 t; t.x = x; t.y = y; t.z = z; return t; }
 #endif    
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_t = typename cuda_eq_t<T,3>::type;
+    inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; t.z = z; return t; }
+#endif
     T x, y, z;
   };
   template<typename T>
   struct vec_t_data<T,4> {
-    using cuda_t = typename cuda_eq_t<T,4>::type;
     inline __cubql_both T         get(int i) const { return (i>=2)?(i==2?z:w):(i?y:x); }
     inline __cubql_both T  operator[](int i) const { return (i>=2)?(i==2?z:w):(i?y:x); }
     inline __cubql_both T &operator[](int i)       { return (i>=2)?(i==2?z:w):(i?y:x); }
     /*! auto-cast to equivalent cuda type */
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_t = typename cuda_eq_t<T,4>::type;
     inline __cubql_both operator cuda_t() { cuda_t t; t.x = x; t.y = y; return t; }
+#endif
     T x, y, z, w;
   };
   
@@ -123,7 +135,6 @@ namespace cuBQL {
   struct vec_t : public vec_t_data<T,D> {
     enum { numDims = D };
     using scalar_t = T;
-    using cuda_t = typename cuda_eq_t<T,D>::type;
 
     inline __cubql_both vec_t() {}
     inline __cubql_both vec_t(const T &t)
@@ -137,12 +148,20 @@ namespace cuBQL {
       CUBQL_PRAGMA_UNROLL
         for (int i=0;i<D;i++) (*this)[i] = o[i];
     }
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_t = typename cuda_eq_t<T,D>::type;
     inline __cubql_both vec_t(const cuda_t &o)
     {
       CUBQL_PRAGMA_UNROLL
         for (int i=0;i<D;i++) (*this)[i] = (&o.x)[i];
     }
-
+    inline __cubql_both vec_t &operator=(cuda_t v)
+    {
+      CUBQL_PRAGMA_UNROLL
+        for (int i=0;i<numDims;i++) (*this)[i] = (&v.x)[i]; 
+      return *this;
+    }
+#endif
     template<typename OT>
     explicit __cubql_both vec_t(const vec_t_data<OT,D> &o)
     {
@@ -150,12 +169,6 @@ namespace cuBQL {
         for (int i=0;i<D;i++) (*this)[i] = (T)o[i];
     }
     
-    inline __cubql_both vec_t &operator=(cuda_t v)
-    {
-      CUBQL_PRAGMA_UNROLL
-        for (int i=0;i<numDims;i++) (*this)[i] = (&v.x)[i]; 
-      return *this;
-    }
     
     inline __cubql_both T         get(int i) const { return (*this)[i]; }
     inline static std::string typeName();
@@ -165,7 +178,6 @@ namespace cuBQL {
   struct vec_t<T,3> : public vec_t_data<T,3> {
     enum { numDims = 3 };
     using scalar_t = T;
-    using cuda_t = typename cuda_eq_t<T,3>::type;
     using vec_t_data<T,3>::x;
     using vec_t_data<T,3>::y;
     using vec_t_data<T,3>::z;
@@ -176,15 +188,17 @@ namespace cuBQL {
     { this->x = x; this->y = y; this->z = z; }
     inline __cubql_both vec_t(const vec_t_data<T,3> &o)
     { this->x = (o.x); this->y = (o.y); this->z = (o.z); }
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_t = typename cuda_eq_t<T,3>::type;
     inline __cubql_both vec_t(const cuda_t &o) 
     { this->x = (o.x); this->y = (o.y); this->z = (o.z); }
+    inline __cubql_both vec_t &operator=(cuda_t o)
+    { this->x = (o.x); this->y = (o.y); this->z = (o.z); return *this; }
+#endif
 
     template<typename OT>
     explicit __cubql_both vec_t(const vec_t_data<OT,3> &o)
     { this->x = T(o.x); this->y = T(o.y); this->z = T(o.z); }
-    
-    inline __cubql_both vec_t &operator=(cuda_t o)
-    { this->x = (o.x); this->y = (o.y); this->z = (o.z); return *this; }
     
     inline static std::string typeName();
   };
@@ -193,7 +207,6 @@ namespace cuBQL {
   struct vec_t<T,4> : public vec_t_data<T,4> {
     enum { numDims = 4 };
     using scalar_t = T;
-    using cuda_t = typename cuda_eq_t<T,4>::type;
     using vec_t_data<T,4>::x;
     using vec_t_data<T,4>::y;
     using vec_t_data<T,4>::z;
@@ -205,16 +218,18 @@ namespace cuBQL {
     { this->x = x; this->y = y; this->z = z; this->w = w; }
     inline __cubql_both vec_t(const vec_t_data<T,4> &o)
     { this->x = (o.x); this->y = (o.y); this->z = (o.z); this->w = (o.w); }
-    inline __cubql_both vec_t(const cuda_t &o) 
-    { this->x = (o.x); this->y = (o.y); this->z = (o.z); this->w = (o.w); }
 
     template<typename OT>
     explicit __cubql_both vec_t(const vec_t_data<OT,4> &o)
     { this->x = T(o.x); this->y = T(o.y); this->z = T(o.z); this->w = T(o.w); }
     
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_t = typename cuda_eq_t<T,4>::type;
+    inline __cubql_both vec_t(const cuda_t &o) 
+    { this->x = (o.x); this->y = (o.y); this->z = (o.z); this->w = (o.w); }
     inline __cubql_both vec_t &operator=(cuda_t o)
     { this->x = (o.x); this->y = (o.y); this->z = (o.z); this->w = (o.w); return *this; }
-    
+#endif    
     inline static std::string typeName();
   };
   
@@ -276,6 +291,7 @@ namespace cuBQL {
     return r;
   }
 
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
   template<typename vec_t>
   inline __cubql_both vec_t make(typename cuda_eq_t<typename vec_t::scalar_t,vec_t::numDims>::type v)
   {
@@ -285,6 +301,7 @@ namespace cuBQL {
         r[i] = (&v.x)[i];
     return r;
   }
+#endif
 
   template<typename T, int D>
   inline __cubql_both
@@ -295,6 +312,33 @@ namespace cuBQL {
   inline __cubql_both
   vec_t<T,D> operator+(vec_t<T,D> v)
   { return v; }
+
+
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+# define CUBQL_OPERATOR_CUDA_T(long_op, op)      \
+    /* cudaVec:vec */                                                   \
+    template<typename T, int D>                                         \
+    inline __cubql_both                                                 \
+    vec_t<T,D> long_op(typename cuda_eq_t<T,D>::type a, vec_t<T,D> b)   \
+    {                                                                   \
+      vec_t<T,D> r;                                                     \
+      CUBQL_PRAGMA_UNROLL                                               \
+        for (int i=0;i<D;i++) r[i] = (&a.x)[i] op b[i];                 \
+      return r;                                                         \
+    }                                                                   \
+    /* vec:cudaVec */                                                   \
+    template<typename T, int D>                                         \
+    inline __cubql_both                                                 \
+    vec_t<T,D> long_op(vec_t<T,D> a,  typename cuda_eq_t<T,D>::type b)  \
+    {                                                                   \
+      vec_t<T,D> r;                                                     \
+      CUBQL_PRAGMA_UNROLL                                               \
+        for (int i=0;i<D;i++) r[i] = a[i] op (&b.x)[i];                 \
+      return r;                                                         \
+    }                                                                   
+#else
+# define CUBQL_OPERATOR_CUDA_T(long_op, op)      /* ignore */
+#endif
   
 #define CUBQL_OPERATOR(long_op, op)                                     \
   /* vec:vec */                                                         \
@@ -327,26 +371,7 @@ namespace cuBQL {
         for (int i=0;i<D;i++) r[i] = a[i] op b;                         \
       return r;                                                         \
     }                                                                   \
-    /* cudaVec:vec */                                                   \
-    template<typename T, int D>                                         \
-    inline __cubql_both                                                 \
-    vec_t<T,D> long_op(typename cuda_eq_t<T,D>::type a, vec_t<T,D> b)   \
-    {                                                                   \
-      vec_t<T,D> r;                                                     \
-      CUBQL_PRAGMA_UNROLL                                               \
-        for (int i=0;i<D;i++) r[i] = (&a.x)[i] op b[i];                 \
-      return r;                                                         \
-    }                                                                   \
-    /* vec:cudaVec */                                                   \
-    template<typename T, int D>                                         \
-    inline __cubql_both                                                 \
-    vec_t<T,D> long_op(vec_t<T,D> a,  typename cuda_eq_t<T,D>::type b)  \
-    {                                                                   \
-      vec_t<T,D> r;                                                     \
-      CUBQL_PRAGMA_UNROLL                                               \
-        for (int i=0;i<D;i++) r[i] = a[i] op (&b.x)[i];                 \
-      return r;                                                         \
-    }                                                                   \
+    CUBQL_OPERATOR_CUDA_T(long_op,op)
 
   CUBQL_OPERATOR(operator+,+)
   CUBQL_OPERATOR(operator-,-)
