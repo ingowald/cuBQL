@@ -63,8 +63,6 @@ namespace cuBQL {
     using scalar_t = T;
     using vec_t = cuBQL::vec_t<T,D>;
 
-    using cuda_vec_t = typename cuda_eq_t<scalar_t,numDims>::type;
-
     using box_t_pod<T,D>::lower;
     using box_t_pod<T,D>::upper;
 
@@ -134,11 +132,14 @@ namespace cuBQL {
     inline __cubql_both void clear() { set_empty(); }
     inline __cubql_both bool empty() const { return get_lower(0) > get_upper(0); }
 
+#if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
+    using cuda_vec_t = typename cuda_eq_t<scalar_t,numDims>::type;
     inline __cubql_both box_t &grow(cuda_vec_t other)
     {
       this->lower = min(this->lower,make<vec_t>(other));
       this->upper = max(this->upper,make<vec_t>(other)); return *this;
     }
+#endif
 
     /*! returns the center of the box, up to rounding errors. (i.e. on
       its, the center of a box with lower=2 and upper=3 is 2, not
