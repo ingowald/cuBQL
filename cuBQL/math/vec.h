@@ -255,7 +255,7 @@ namespace cuBQL {
   { return a * b + c; }
   
   template<typename T>
-  inline __cubql_both vec_t<T,3> cross(vec_t<T,3> a, vec_t<T,3> b)
+  inline __cubql_both vec_t<T,3> cross(const vec_t<T,3> &a, const vec_t<T,3> &b)
   {
     return vec_t<T,3>(a.y*b.z-b.y*a.z,
                       a.z*b.x-b.z*a.x,
@@ -577,6 +577,21 @@ namespace cuBQL {
 
 
 
+  template<typename /* scalar type */T>
+  inline __cubql_both bool operator==(const vec_t_data<T,2> &a,
+                                      const vec_t_data<T,2> &b)
+  { return a.x==b.x && a.y==b.y; }
+  
+  template<typename /* scalar type */T>
+  inline __cubql_both bool operator==(const vec_t_data<T,3> &a,
+                                      const vec_t_data<T,3> &b)
+  { return a.x==b.x && a.y==b.y && a.z==b.z; }
+  
+  template<typename /* scalar type */T>
+  inline __cubql_both bool operator==(const vec_t_data<T,4> &a,
+                                      const vec_t_data<T,4> &b)
+  { return a.x==b.x && a.y==b.y && a.z==b.z && a.w==b.w; }
+  
   template<typename /* scalar type */T, int /*! dimensoins */D>
   inline __cubql_both bool operator==(const vec_t_data<T,D> &a,
                                       const vec_t_data<T,D> &b)
