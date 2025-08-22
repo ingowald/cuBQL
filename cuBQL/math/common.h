@@ -391,13 +391,13 @@ namespace cuBQL {
   inline __cubql_both dbgout operator<<(dbgout o, int32_t i)
   { printf("%i",i); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, uint32_t i)
-  { printf("%i",i); return o; }
+  { printf("%u",i); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, float f)
   { printf("%f",f); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
-  { printf("%li",i); return o; }
+  { printf("%llu",i); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
-  { printf("%li",i); return o; }
+  { printf("%lli",i); return o; }
   
 };
 
