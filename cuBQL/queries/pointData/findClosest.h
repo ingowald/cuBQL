@@ -47,7 +47,7 @@ namespace cuBQL {
       not)
     */
     template<typename T, int D>
-    inline __cubql_device
+    inline __cubql_both
     int findClosest(/*! binary bvh built over the given points[]
                       specfied below */
                     BinaryBVH<T,D> bvhOverPoints,
@@ -78,7 +78,7 @@ namespace cuBQL {
       not)
     */
     template<typename T, int D, int W>
-    inline __cubql_device
+    inline __cubql_both
     int findClosest(/*! binary bvh built over the given points[]
                       specfied below */
                     WideBVH<T,D,W> bvhOverPoints,
@@ -94,7 +94,7 @@ namespace cuBQL {
 
 
     template<typename T, int D>
-    inline __cubql_device
+    inline __cubql_both
     int findClosest_exludeID(/*! primitive ID to _exclude_ from queries */
                              int idOfPointtoExclude,
                              /*! binary bvh built over the given points[]
@@ -131,7 +131,7 @@ namespace cuBQL {
     // ******************************************************************
     /*! variant of cuBQL::point::findClosest() that's specialized for
       CUDA float2 type, just for convenience */
-    inline __cubql_device
+    inline __cubql_both
     int findClosest(/*! binary bvh built over the given points[]
                       specfied below */
                     bvh_float2 bvhOverPoints,
@@ -146,7 +146,7 @@ namespace cuBQL {
     // ******************************************************************
     /*! variant of cuBQL::point::findClosest() that's specialized for
       CUDA float3 type, just for convenience */
-    inline __cubql_device
+    inline __cubql_both
     int findClosest(/*! binary bvh built over the given points[]
                       specfied below */
                     bvh_float3 bvhOverPoints,
@@ -161,7 +161,7 @@ namespace cuBQL {
     // ******************************************************************
     /*! variant of cuBQL::point::findClosest() that's specialized for
       CUDA float4 type, just for convenience */
-    inline __cubql_device
+    inline __cubql_both
     int findClosest(/*! binary bvh built over the given points[]
                       specfied below */
                     bvh_float4 bvhOverPoints,

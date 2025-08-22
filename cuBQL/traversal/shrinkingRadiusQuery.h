@@ -55,11 +55,14 @@ namespace cuBQL {
     template<typename T, int D, typename Lambda>
     inline __cubql_both
     void forEachPrim(/*! lambda that gets called for each candidate
-                       primitmive index that may contain any
-                       primitmives. if this lamdba does find a new,
-                       better result than whatever the query had
-                       before this lambda MUST return the SQUARE of
-                       the new culling radius */
+                       primitive index that may contain any new result
+                       within the current max query radius. if this
+                       lamdba does find a new, better result than
+                       whatever the query had before this lambda MUST
+                       return the SQUARE of the new culling
+                       radius. Returning a culling radius < 0 will
+                       immediately terminate any future traversal
+                       steps */
                      const Lambda &lambdaToExecuteForEachCandidate,
                      /* the bvh we're querying into */
                      bvh_t<T,D> bvh,
@@ -67,8 +70,8 @@ namespace cuBQL {
                      vec_t<T,D> queryPoint,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
-                     float sqrMaxSearchRadius=INFINITY);
+                       CUBQL_INF for unrestricted searches */
+                     float sqrMaxSearchRadius=CUBQL_INF);
     
     // ******************************************************************
     /*! performs a 'shrinking radius (primitive-)query', which iterate
@@ -108,8 +111,8 @@ namespace cuBQL {
                      vec_t<T,D> queryPoint,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
-                     float sqrMaxSearchRadius=INFINITY);
+                       CUBQL_INF for unrestricted searches */
+                     float sqrMaxSearchRadius=CUBQL_INF);
 
     /*! same as regular `forEachLeaf()` function, except this one has
         a lambda for both leaf-test *and* for distance computation as
@@ -130,8 +133,8 @@ namespace cuBQL {
                      bvh_t<T,D> bvh,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
-                     float sqrMaxSearchRadius=INFINITY);
+                       CUBQL_INF for unrestricted searches */
+                     float sqrMaxSearchRadius=CUBQL_INF);
     
 
     // ******************************************************************
@@ -172,8 +175,8 @@ namespace cuBQL {
                      vec_t<T,D> queryPoint,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
-                     float sqrMaxSearchRadius=INFINITY);
+                       CUBQL_INF for unrestricted searches */
+                     float sqrMaxSearchRadius=CUBQL_INF);
     
     /*! performs a 'shrinking radius (leaf-)query', which iterate
       through all bvh leaves that overlap a given query ball that is
@@ -202,8 +205,8 @@ namespace cuBQL {
                      vec_t<T,D> queryPoint,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
-                     float sqrMaxSearchRadius=INFINITY);
+                       CUBQL_INF for unrestricted searches */
+                     float sqrMaxSearchRadius=CUBQL_INF);
 
     /*! same as regular `forEachLeaf()` function, except this one has
         a lambda for both leaf-test *and* for distance computation as
@@ -224,174 +227,14 @@ namespace cuBQL {
                      bvh_t<T,D> bvh,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
-                     float sqrMaxSearchRadius=INFINITY);
+                       CUBQL_INF for unrestricted searches */
+                     float sqrMaxSearchRadius=CUBQL_INF);
     
     
   
     // ******************************************************************
     // IMPLEMENTATION
     // ******************************************************************
-    
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec2f point, box2f box)
-    {
-      vec2f projected = min(max(point,box.lower),box.upper);
-      vec2f v = projected - point;
-      return dot(v,v);
-    }
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec3f point, box3f box)
-    {
-      vec3f projected = min(max(point,box.lower),box.upper);
-      vec3f v = projected - point;
-      return dot(v,v);
-    }
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec4f point, box4f box)
-    {
-      vec4f projected = min(max(point,box.lower),box.upper);
-      vec4f v = projected - point;
-      return dot(v,v);
-    }
-
-
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec2i point, box2i box)
-    {
-      vec2i projected = min(max(point,box.lower),box.upper);
-      vec2i v = projected - point;
-#ifdef __CUDA_ARCH__
-      return __ll2float_rd(dot(v,v));
-#else
-      return host::__ull2float_rd(dot(v,v));
-#endif
-    }
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec3i point, box3i box)
-    {
-      vec3i projected = min(max(point,box.lower),box.upper);
-      vec3i v = projected - point;
-#ifdef __CUDA_ARCH__
-      return __ll2float_rd(dot(v,v));
-#else
-      return host::__ull2float_rd(dot(v,v));
-#endif
-    }
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec4i point, box4i box)
-    {
-      vec4i projected = min(max(point,box.lower),box.upper);
-      vec4i v = projected - point;
-#ifdef __CUDA_ARCH__
-      return __ll2float_rd(dot(v,v));
-#else
-      return host::__ull2float_rd(dot(v,v));
-#endif
-    }
-
-
-
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec2d point, box2d box)
-    {
-      vec2d projected = min(max(point,box.lower),box.upper);
-      vec2d v = projected - point;
-#ifdef __CUDA_ARCH__
-      return __ll2float_rd(dot(v,v));
-#else
-      return host::__udouble2float_rd(dot(v,v));
-#endif
-    }
-    
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec3d point, box3d box)
-    {
-      vec3d projected = min(max(point,box.lower),box.upper);
-      vec3d v = projected - point;
-#ifdef __CUDA_ARCH__
-      return __double2float_rd(dot(v,v));
-#else
-      return host::__udouble2float_rd(dot(v,v));
-#endif
-    }
-    
-    /*! compute square distance with round-down where necessary. Use
-      this in traversal query-to-node distance checks, because the
-      rounding down will mean we'll only ever, if anything,
-      _under_estimate the distance to the node, and thus never wrongly
-      cull any subtrees) */
-    inline __cubql_both
-    float fSqrDistance_rd(vec4d point, box4d box)
-    {
-      vec4d projected = min(max(point,box.lower),box.upper);
-      vec4d v = projected - point;
-#ifdef __CUDA_ARCH__
-      return __double2float_rd(dot(v,v));
-#else
-      return host::__udouble2float_rd(dot(v,v));
-#endif
-    }
-
-    template<int D>
-    inline __cubql_both
-    float fSqrDistance_rd(vec_t<long long int, D> a,
-                          vec_t<long long int, D> b)
-    {
-      float sum = 0.f;
-      for (int i=0;i<D;i++) {
-        long long lo = min(a[i],b[i]);
-        long long hi = max(a[i],b[i]);
-        unsigned long long diff = hi - lo;
-#ifdef __CUDA_ARCH__
-        float fDiff = __ll2float_rd(diff);
-#else
-        float fDiff = host::__ull2float_rd(diff);
-#endif
-        sum += fDiff*fDiff;
-      }
-      return sum;
-    }
     
     /*! performs a 'shrinking radius (leaf-)query', which iterate
       through all bvh leaves that overlap a given query ball that is
@@ -778,7 +621,7 @@ namespace cuBQL {
                      vec_t<T,D> queryPoint,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
+                       CUBQL_INF for unrestricted searches */
                      float sqrMaxSearchRadius)
     {
       /* the code we want to have executed for each leaf that may
@@ -789,11 +632,12 @@ namespace cuBQL {
         = [lambdaToExecuteForEachCandidate](const uint32_t *leafPrims,
                                             size_t numPrims)->float
         {
-          float leafResult = INFINITY;
+          float leafResult = CUBQL_INF;
           for (int i=0;i<numPrims;i++) {
             float primResult
               = lambdaToExecuteForEachCandidate(leafPrims[i]);
             leafResult = min(leafResult,primResult);
+            if (leafResult < 0.f) break;
           }
           return leafResult;
         };
@@ -828,7 +672,7 @@ namespace cuBQL {
                      vec_t<T,D> queryPoint,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
+                       CUBQL_INF for unrestricted searches */
                      float sqrMaxSearchRadius)
     {
       /* the code we want to have executed for each leaf that may
@@ -839,7 +683,7 @@ namespace cuBQL {
         = [lambdaToExecuteForEachCandidate](const uint32_t *leafPrims,
                                             size_t numPrims)->float
         {
-          float leafResult = INFINITY;
+          float leafResult = CUBQL_INF;
           for (int i=0;i<numPrims;i++) {
             float primResult
               = lambdaToExecuteForEachCandidate(leafPrims[i]);
@@ -877,7 +721,7 @@ namespace cuBQL {
                      bvh_t<T,D> bvh,
                      /*! the SQUARE of the maximum query radius to
                        which we want to restrict the search; can be
-                       INFINITY for unrestricted searches */
+                       CUBQL_INF for unrestricted searches */
                      float sqrMaxSearchRadius)
     {
       /* the code we want to have executed for each leaf that may
@@ -888,7 +732,7 @@ namespace cuBQL {
         = [lambdaToExecuteForEachCandidate](const uint32_t *leafPrims,
                                             size_t numPrims)->float
         {
-          float leafResult = INFINITY;
+          float leafResult = CUBQL_INF;
           for (int i=0;i<numPrims;i++) {
             float primResult
               = lambdaToExecuteForEachCandidate(leafPrims[i]);

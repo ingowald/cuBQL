@@ -1,18 +1,5 @@
-# ======================================================================== #
-# Copyright 2023-2024 Ingo Wald                                            #
-#                                                                          #
-# Licensed under the Apache License, Version 2.0 (the "License");          #
-# you may not use this file except in compliance with the License.         #
-# You may obtain a copy of the License at                                  #
-#                                                                          #
-#     http://www.apache.org/licenses/LICENSE-2.0                           #
-#                                                                          #
-# Unless required by applicable law or agreed to in writing, software      #
-# distributed under the License is distributed on an "AS IS" BASIS,        #
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. #
-# See the License for the specific language governing permissions and      #
-# limitations under the License.                                           #
-# ======================================================================== #
+# Copyright 2023 Ingo Wald
+# SPDX-License-Identifier: Apache-2.0
 
 # a interface-only library that only sets include paths etc; when
 # using this the user has to manulaly set CUBQL_BUILDER_INSTANTIATION
@@ -31,8 +18,10 @@ target_sources(cuBQL INTERFACE
   traversal/shrinkingRadiusQuery.h
   traversal/fixedBoxQuery.h
   # host side builder(s)
+  builder/cpu.h
   builder/cpu/spatialMedian.h
   # cuda side builder(s)
+  builder/cuda.h
   builder/cuda/builder_common.h
   builder/cuda/sm_builder.h
   builder/cuda/sah_builder.h
@@ -44,6 +33,15 @@ target_sources(cuBQL INTERFACE
 target_include_directories(cuBQL INTERFACE
   ${PROJECT_SOURCE_DIR}
   )
+set_target_properties(cuBQL
+  PROPERTIES
+  CXX_VISIBILITY_PRESET  default
+  CUDA_VISIBILITY_PRESET default
+  POSITION_INDEPENDENT_CODE ON
+  CUDA_SEPARABLE_COMPILATION ON
+  CUDA_RESOLVE_DEVICE_SYMBOLS ON
+  CUDA_USE_STATIC_CUDA_RUNTIME ON
+  )
   
 # helper for creating type- and device-specific implementations of
 # cubql; i.e., one for host_float4, one for cuda_int3, etc. Since
@@ -52,16 +50,12 @@ target_include_directories(cuBQL INTERFACE
 # the specific builders for the given type and device
 function(add_specific_instantiation device suffix T D)
   add_library(cuBQL_${device}_${T}${D} SHARED EXCLUDE_FROM_ALL
-    impl/instantiate_builders.${suffix}
+    builder/${device}/instantiate_builders.${suffix}
     )
   if (${device} STREQUAL "cuda")
     target_compile_definitions(cuBQL_${device}_${T}${D}
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
-      )
-    set_target_properties(cuBQL_${device}_${T}${D}
-      PROPERTIES
-      CUDA_ARCHITECTURES ${CUBQL_CUDA_ARCHITECTURES}
       )
   endif()
   set_target_properties(cuBQL_${device}_${T}${D}
@@ -79,20 +73,12 @@ function(add_specific_instantiation device suffix T D)
     )
 
   add_library(cuBQL_${device}_${T}${D}_static STATIC EXCLUDE_FROM_ALL
-    impl/instantiate_builders.${suffix}
+    builder/${device}/instantiate_builders.${suffix}
     )
   if (${device} STREQUAL "cuda")
     target_compile_definitions(cuBQL_${device}_${T}${D}_static
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
-      )
-    set_target_properties(cuBQL_${device}_${T}${D}_static
-      PROPERTIES
-      POSITION_INDEPENDENT_CODE ON
-      )
-    set_target_properties(cuBQL_${device}_${T}${D}_static
-      PROPERTIES
-      CUDA_ARCHITECTURES ${CUBQL_CUDA_ARCHITECTURES}
       )
   endif()
   set_target_properties(cuBQL_${device}_${T}${D}_static
@@ -102,6 +88,15 @@ function(add_specific_instantiation device suffix T D)
   target_link_libraries(cuBQL_${device}_${T}${D}_static
     PUBLIC
     cuBQL
+    )
+  set_target_properties(cuBQL_${device}_${T}${D}_static
+    PROPERTIES
+    CXX_VISIBILITY_PRESET  default
+    CUDA_VISIBILITY_PRESET default
+    POSITION_INDEPENDENT_CODE ON
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    CUDA_USE_STATIC_CUDA_RUNTIME ON
     )
   target_compile_definitions(cuBQL_${device}_${T}${D}_static
     PRIVATE
@@ -134,10 +129,10 @@ endforeach()
 # automatically on both cpu and cuda, so this is a INTERFACE library
 add_library(cuBQL_queries INTERFACE
   #
-  queries/points/knn.h
+  queries/pointData/knn.h
   #
-  queries/points/findClosest.h
-  queries/points/knn.h
+  queries/pointData/findClosest.h
+  queries/pointData/knn.h
   )
 target_link_libraries(cuBQL_queries
   INTERFACE

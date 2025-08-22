@@ -1,74 +1,108 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
+#ifdef __HIPCC__
+# include <hip/hip_runtime.h>
+#else
 # include <cuda_runtime_api.h>
+#endif
 # include "cuBQL/math/box.h"
+# include <map>
 
 namespace cuBQL {
 
   // ------------------------------------------------------------------
   /*! defines a 'memory resource' that can be used for allocating gpu
-      memory; this allows the user to switch between usign
-      cudaMallocAsync (where avialable) vs regular cudaMalloc (where
-      not), or to use their own memory pool, to use managed memory,
-      etc. All memory allocatoins done during construction will use
-      the memory resource passed to the respective build function. */
+    memory; this allows the user to switch between usign
+    cudaMallocAsync (where avialable) vs regular cudaMalloc (where
+    not), or to use their own memory pool, to use managed memory,
+    etc. All memory allocatoins done during construction will use
+    the memory resource passed to the respective build function. */
   struct GpuMemoryResource {
-    virtual cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) = 0;
-    virtual cudaError_t free(void* ptr, cudaStream_t s) = 0;
+    virtual void malloc(void** ptr, size_t size, cudaStream_t s) = 0;
+    virtual void free(void* ptr, cudaStream_t s) = 0;
   };
   
   struct ManagedMemMemoryResource : public GpuMemoryResource {
-    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override
+    void malloc(void** ptr, size_t size, cudaStream_t s) override
     {
-      cudaStreamSynchronize(s);
-      return cudaMallocManaged(ptr,size);
+      CUBQL_CUDA_CALL(StreamSynchronize(s));
+      CUBQL_CUDA_CALL(MallocManaged(ptr,size));
     }
-    cudaError_t free(void* ptr, cudaStream_t s) override
+    void free(void* ptr, cudaStream_t s) override
     {
-      cudaStreamSynchronize(s);
-      return cudaFree(ptr);
+      CUBQL_CUDA_CALL(StreamSynchronize(s));
+      CUBQL_CUDA_CALL(Free(ptr));
     }
+  };
+
+  /*! allocator that uses regular cudaMalloc to allocate memory. can
+    be a bit slower than using aync mallocs, but in case of
+    multi-gpu system is easier to control which device the memory
+    gets allocated on */
+  struct DeviceMemoryResource final : GpuMemoryResource {
+    DeviceMemoryResource()
+    {}
+    void malloc(void** ptr, size_t size, cudaStream_t s) override {
+      CUBQL_CUDA_CALL(Malloc(ptr, size));
+    }
+    void free(void* ptr, cudaStream_t s) override
+    {
+      CUBQL_CUDA_CALL(Free(ptr));
+    }
+  };
+  
+#if CUDART_VERSION >= 11020
+  /* Allocator that uses cudaMallocAsync to allocate memory. This can
+     be much faster than cudaMalloc because it doesn't require a
+     device sync for each malloc; but .. CAREFUL: to get memory to be
+     allocated on a given GPU it is NOT sufficient to just do a
+     cudaSetDevice() to the given GPU - async memory gets allocated on
+     the GPU to which the given stream passed to the builder is
+     associated. If you pass the default stream 0, your mallocs will
+     always happen on the first device! */
+  struct AsyncGpuMemoryResource final : GpuMemoryResource {
+    AsyncGpuMemoryResource(int devID)
+    {
+      static bool memPoolInitialized = false;
+      if (!memPoolInitialized) {
+        CUBQL_CUDA_CALL(GetDeviceCount(&numDevices));
+        for (int i=0;i<numDevices;i++) {
+          cudaMemPool_t mempool;
+          cudaDeviceGetDefaultMemPool(&mempool, devID);
+          uint64_t threshold = UINT64_MAX;
+          cudaMemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold);
+        }
+        memPoolInitialized = true;;
+      }
+    }
+    void malloc(void** ptr, size_t size, cudaStream_t s) override {
+#ifndef NDEBUG
+      if (numDevices > 1 && s == 0)
+        std::cerr << "@cuBQL: warning; async memory allocator used with default stream."
+                  << std::endl;
+#endif
+      CUBQL_CUDA_CALL(MallocAsync(ptr, size, s));
+    }
+    void free(void* ptr, cudaStream_t s) override
+    {
+      CUBQL_CUDA_CALL(FreeAsync(ptr, s));
+    }
+    int numDevices = 0;
   };
 
   /* by default let's use cuda malloc async, which is much better and
      faster than regular malloc; but that's available on cuda 11, so
      let's add a fall back for older cuda's, too */
-#if CUDART_VERSION >= 11020
-  struct AsyncGpuMemoryResource final : GpuMemoryResource {
-    AsyncGpuMemoryResource()
-    {
-      cudaMemPool_t mempool;
-      cudaDeviceGetDefaultMemPool(&mempool, 0);
-      uint64_t threshold = UINT64_MAX;
-      cudaMemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold);
-    }
-    cudaError_t malloc(void** ptr, size_t size, cudaStream_t s) override {
-      return cudaMallocAsync(ptr, size, s);
-    }
-    cudaError_t free(void* ptr, cudaStream_t s) override {
-      return cudaFreeAsync(ptr, s);
-    }
-  };
-
   inline GpuMemoryResource &defaultGpuMemResource() {
-    static AsyncGpuMemoryResource memResource;
-    return memResource;
+    static std::map<int,AsyncGpuMemoryResource*> asyncMemPerDevice;
+    int devID;
+    CUBQL_CUDA_CALL(GetDevice(&devID));
+    if (asyncMemPerDevice[devID] == nullptr)
+      asyncMemPerDevice[devID] = new AsyncGpuMemoryResource(devID);
+    return *asyncMemPerDevice[devID];
   }
 #else
   inline GpuMemoryResource &defaultGpuMemResource() {
@@ -94,7 +128,7 @@ namespace cuBQL {
                     be in device memory */
                   const box_t<T,D> *boxes,
                   uint32_t          numBoxes,
-                  BuildConfig       buildConfig,
+                  BuildConfig       buildConfig=BuildConfig(),
                   cudaStream_t      s=0,
                   GpuMemoryResource &memResource=defaultGpuMemResource());
   
@@ -111,7 +145,7 @@ namespace cuBQL {
                     be in device memory */
                   const box_t<T,D>  *boxes,
                   uint32_t          numBoxes,
-                  BuildConfig       buildConfig,
+                  BuildConfig       buildConfig=BuildConfig(),
                   cudaStream_t      s=0,
                   GpuMemoryResource& memResource=defaultGpuMemResource());
 
@@ -176,8 +210,8 @@ namespace cuBQL {
     cuBQL::cuda::free(..) */
   template<typename T, int D>
   inline void free(BinaryBVH<T,D> &bvh,
-            cudaStream_t      s=0,
-            GpuMemoryResource& memResource=defaultGpuMemResource())
+                   cudaStream_t      s=0,
+                   GpuMemoryResource& memResource=defaultGpuMemResource())
   { cuda::free(bvh,s,memResource); }
 
   /*! frees the bvh.nodes[] and bvh.primIDs[] memory allocated when
@@ -187,13 +221,13 @@ namespace cuBQL {
     cuBQL::cuda::free(..) */
   template<typename T, int D, int N>
   inline void free(WideBVH<T,D,N> &bvh,
-            cudaStream_t      s=0,
-            GpuMemoryResource& memResource=defaultGpuMemResource())
+                   cudaStream_t      s=0,
+                   GpuMemoryResource& memResource=defaultGpuMemResource())
   { cuda::free(bvh,s,memResource); }
 
 }
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 # ifdef CUBQL_GPU_BUILDER_IMPLEMENTATION
 #  include "cuBQL/builder/cuda/gpu_builder.h"  
 #  include "cuBQL/builder/cuda/sm_builder.h"  

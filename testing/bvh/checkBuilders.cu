@@ -1,25 +1,12 @@
-// ======================================================================== //
-// Copyright 2023-2024 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 /*! \file check.cu builds all BVH variants we can, and runs some
     sanity and quality checks on the result */
 
 #include "cuBQL/bvh.h"
 #include "cuBQL/builder/cuda.h"
-#include "cuBQL/builder/host.h"
+#include "cuBQL/builder/cpu.h"
 #include "samples/common/CmdLine.h"
 #include "samples/common/IO.h"
 #include "testing/common/testRig.h"
@@ -264,7 +251,7 @@ namespace testing {
       auto freeBVH
         = [&]()
         {
-          cuBQL::host::freeBVH(bvh);
+          cuBQL::cpu::freeBVH(bvh);
           bvh = bvh_t{};
         };
       auto download
@@ -276,10 +263,10 @@ namespace testing {
           primIDs.resize(bvh.numPrims);
           memcpy(primIDs.data(),bvh.primIDs,bvh.numPrims*sizeof(primIDs[0]));
         };
-      check([&](){cuBQL::host::spatialMedian(bvh,boxes.data(),boxes.size(),BuildConfig());},
+      check([&](){cuBQL::cpu::spatialMedian(bvh,boxes.data(),boxes.size(),BuildConfig());},
             freeBVH,
             download,
-            "host::spatialMedian",false);
+            "cpu::spatialMedian",false);
     }
 
     void checkDev()

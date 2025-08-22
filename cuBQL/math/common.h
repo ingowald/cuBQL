@@ -1,18 +1,5 @@
-// ======================================================================== //
-// Copyright 2023-2023 Ingo Wald                                            //
-//                                                                          //
-// Licensed under the Apache License, Version 2.0 (the "License");          //
-// you may not use this file except in compliance with the License.         //
-// You may obtain a copy of the License at                                  //
-//                                                                          //
-//     http://www.apache.org/licenses/LICENSE-2.0                           //
-//                                                                          //
-// Unless required by applicable law or agreed to in writing, software      //
-// distributed under the License is distributed on an "AS IS" BASIS,        //
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
-// See the License for the specific language governing permissions and      //
-// limitations under the License.                                           //
-// ======================================================================== //
+// Copyright 2023 Ingo Wald
+// SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 
@@ -33,10 +20,13 @@
 #include <algorithm>
 #include <sstream>
 #ifdef __GNUC__
-#include <execinfo.h>
-#include <sys/time.h>
+# include <execinfo.h>
+# include <sys/time.h>
 #endif
-#ifdef __CUDACC__
+#if defined(__HIPCC__)
+#  include <hip/driver_types.h>
+#  include <hip/hip_runtime.h>
+#elif defined(__CUDACC__)
 #  include <cuda_runtime.h>
 #endif
 
@@ -84,7 +74,10 @@
 #endif
 #endif
 
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDACC__)
+# define __cubql_device   __device__
+# define __cubql_host     __host__
+#elif defined(__HIPCC__)
 # define __cubql_device   __device__
 # define __cubql_host     __host__
 #else
@@ -300,7 +293,7 @@ namespace cuBQL {
 
 
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
 
 #define CUBQL_RAISE(MSG) ::cuBQL::detail::cubqlRaise_impl(MSG);
 
@@ -383,4 +376,29 @@ namespace cuBQL {
     }                                                                   \
   }
 #endif
+
+
+
+namespace cuBQL {
+  struct dbgout {
+    static constexpr const char *const endl = "\n";
+  };
+  static constexpr const char *const endl = "\n";
+  static constexpr dbgout dout = {};
+  inline __cubql_both dbgout operator<<(dbgout o, const char *s)
+  { printf("%s",s); return o; }
+  
+  inline __cubql_both dbgout operator<<(dbgout o, int32_t i)
+  { printf("%i",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, uint32_t i)
+  { printf("%u",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, float f)
+  { printf("%f",f); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
+  { printf("%llu",i); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
+  { printf("%lli",i); return o; }
+  
+};
+
 

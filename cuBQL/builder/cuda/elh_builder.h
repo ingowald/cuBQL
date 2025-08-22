@@ -96,13 +96,13 @@ namespace cuBQL {
                      int &splitBin,
                      const ELHBins<T,D> &elh)
     {
-      float bestCost = INFINITY;
+      float bestCost = CUBQL_INF;
 
-      float rLengths[elh.numBins];
+      float rLengths[(int)elh.numBins];
       for (int d=0;d<D;d++) {
         box_t<T,D> box; box.set_empty();
         int   rCount = 0;
-        for (int b=elh.numBins-1;b>=0;--b) {
+        for (int b=(int)elh.numBins-1;b>=0;--b) {
           auto bin = elh.dims[d].bins[b];
           grow(box,bin.bounds.make_box());
           rCount += bin.count;
@@ -115,7 +115,7 @@ namespace cuBQL {
         }
         box.set_empty();
         int lCount = 0;
-        for (int b=0;b<elh.numBins;b++) {
+        for (int b=0;b<(int)elh.numBins;b++) {
           float rArea = rLengths[b];
           float lArea = edgeLengths(box);
           if (lCount>0 && rCount>0) {
@@ -203,7 +203,7 @@ namespace cuBQL {
 
       auto &elh = elhBins[nodeID-elhNodeBegin];
       box_t<T,D> centBounds = nodes[nodeID].openBranch.centBounds.make_box();
-#pragma unroll(D)
+#pragma unroll D
       for (int d=0;d<D;d++) {
         int bin = 0;
         float lo = centBounds.get_lower(d);
@@ -213,8 +213,8 @@ namespace cuBQL {
           float rel
             = (prim_d - centBounds.get_lower(d))
             / (centBounds.get_upper(d)-centBounds.get_lower(d));
-          bin = int(rel*ELHBins<T,D>::numBins);
-          bin = max(0,min(ELHBins<T,D>::numBins-1,bin));
+          bin = int(rel*(int)ELHBins<T,D>::numBins);
+          bin = max(0,min((int)ELHBins<T,D>::numBins-1,bin));
           // printf("prim %i in node %i, pos %f %f %f in cent %f %f %f - %f %f %f; dim %i: rel %f bin %i\n",
           //        primID,nodeID,
           //        primBox.lower.x,
@@ -347,7 +347,7 @@ namespace cuBQL {
       float rel
         = (prim_d - lo)
         / (hi - lo);
-      int prim_bin = int(rel*ELHBins<T,D>::numBins);
+      int prim_bin = int(rel*(int)ELHBins<T,D>::numBins);
       prim_bin = max(0,min(ELHBins<T,D>::numBins-1,prim_bin));
       
       int side = (prim_bin >= open.bin);
@@ -519,15 +519,18 @@ namespace cuBQL {
       size_t     temp_storage_bytes = 0;
       PrimState *sortedPrimStates;
       _ALLOC(sortedPrimStates,numPrims,s,memResource);
+      auto rc = 
       cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
       _ALLOC(d_temp_storage,temp_storage_bytes,s,memResource);
+      rc = 
       cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
                                      (uint64_t*)primStates,
                                      (uint64_t*)sortedPrimStates,
                                      numPrims,32,64,s);
+      rc = rc;
       CUBQL_CUDA_CALL(StreamSynchronize(s));
       _FREE(d_temp_storage,s,memResource);
       // ==================================================================
