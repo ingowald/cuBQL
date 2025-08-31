@@ -396,9 +396,9 @@ namespace cuBQL {
   { printf("%f",f); return o; }
 #ifdef _WIN32
   inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
-  { printf("%llu",i); return o; }
+  { printf("%llu",(unsigned long long)i); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
-  { printf("%lli",i); return o; }
+  { printf("%lli",(long long)i); return o; }
 #else
   inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
   { printf("%lu",i); return o; }
