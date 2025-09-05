@@ -255,7 +255,7 @@ namespace cuBQL {
   { return a * b + c; }
   
   template<typename T>
-  inline __cubql_both vec_t<T,3> cross(vec_t<T,3> a, vec_t<T,3> b)
+  inline __cubql_both vec_t<T,3> cross(const vec_t<T,3> &a, const vec_t<T,3> &b)
   {
     return vec_t<T,3>(a.y*b.z-b.y*a.z,
                       a.z*b.x-b.z*a.x,
@@ -376,6 +376,7 @@ namespace cuBQL {
   CUBQL_OPERATOR(operator+,+)
   CUBQL_OPERATOR(operator-,-)
   CUBQL_OPERATOR(operator*,*)
+  CUBQL_OPERATOR(operator*=,*=)
   CUBQL_OPERATOR(operator/,/)
 #undef CUBQL_OPERATOR
 
@@ -437,20 +438,35 @@ namespace cuBQL {
   inline __cubql_both vec_t<uint64_t,4> operator>>(vec_t<uint64_t,4> v, int b)
   { return vec_t<uint64_t,4>( v.x >> b, v.y >> b, v.z >> b, v.w >> b ); }
   
-
+  inline __cubql_both double abs(double d) {
+#ifdef __CUDA_ARCH__
+    return ::abs(d);
+#else
+    return std::abs(d);
+#endif
+  }
+  inline __cubql_both float abs(float d) {
+#ifdef __CUDA_ARCH__
+    return ::abs(d);
+#else
+    return std::abs(d);
+#endif
+  }
+  // inline __cubql_both double abs(double d) { return absf(d); }
   
 #define CUBQL_UNARY(op)                         \
   template<typename T, int D>                   \
   inline __cubql_both                           \
-  vec_t<T,D> rcp(vec_t<T,D> a)                  \
+  vec_t<T,D> op(vec_t<T,D> a)                  \
   {                                             \
     vec_t<T,D> r;                               \
     CUBQL_PRAGMA_UNROLL                         \
-      for (int i=0;i<D;i++) r[i] = op(a[i]);    \
+      for (int i=0;i<D;i++) r[i] = ::cuBQL:: op(a[i]);   \
     return r;                                   \
   }
 
   CUBQL_UNARY(rcp)
+  CUBQL_UNARY(abs)
 #undef CUBQL_FUNCTOR
   
 #define CUBQL_BINARY(op)                                \
@@ -561,6 +577,10 @@ namespace cuBQL {
   inline __cubql_both float length(const vec_t<float,D> &v)
   { return sqrtf(dot(v,v)); }
     
+  template<int D>
+  inline __cubql_both double length(const vec_t<double,D> &v)
+  { return sqrt(dot(v,v)); }
+    
   
   template<typename T, int D>
   inline std::ostream &operator<<(std::ostream &o,
@@ -577,6 +597,21 @@ namespace cuBQL {
 
 
 
+  template<typename /* scalar type */T>
+  inline __cubql_both bool operator==(const vec_t_data<T,2> &a,
+                                      const vec_t_data<T,2> &b)
+  { return a.x==b.x && a.y==b.y; }
+  
+  template<typename /* scalar type */T>
+  inline __cubql_both bool operator==(const vec_t_data<T,3> &a,
+                                      const vec_t_data<T,3> &b)
+  { return a.x==b.x && a.y==b.y && a.z==b.z; }
+  
+  template<typename /* scalar type */T>
+  inline __cubql_both bool operator==(const vec_t_data<T,4> &a,
+                                      const vec_t_data<T,4> &b)
+  { return a.x==b.x && a.y==b.y && a.z==b.z && a.w==b.w; }
+  
   template<typename /* scalar type */T, int /*! dimensoins */D>
   inline __cubql_both bool operator==(const vec_t_data<T,D> &a,
                                       const vec_t_data<T,D> &b)

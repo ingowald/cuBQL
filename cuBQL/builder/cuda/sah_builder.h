@@ -29,16 +29,17 @@ namespace cuBQL {
     using ::cuBQL::gpuBuilder_impl::OPEN_BRANCH;
     using ::cuBQL::gpuBuilder_impl::_ALLOC;
     using ::cuBQL::gpuBuilder_impl::_FREE;
-    
+
+    template<typename box_t>
     struct CUBQL_ALIGN(16) TempNode {
       union {
         struct {
-          AtomicBox<box3f> centBounds;
+          AtomicBox<box_t> centBounds;
           uint32_t         count;
           uint32_t         unused;
         } openBranch;
         struct {
-          AtomicBox<box3f> centBounds;
+          AtomicBox<box_t> centBounds;
           uint32_t offset;
           int8_t   dim;
           int8_t   bin;
@@ -50,27 +51,29 @@ namespace cuBQL {
         } doneNode;
       };
     };
-    
+
+    template<typename box_t>
     struct SAHBins {
       enum { numBins = 16 };
       struct {
         struct CUBQL_ALIGN(16) {
-          AtomicBox<box3f> bounds;
+          AtomicBox<box_t> bounds;
           int   count;
         } bins[numBins];
       } dims[3];
     };
 
+    template<typename box_t>
     inline __device__
     void evaluateSAH(int &splitDim,
                      int &splitBin,
-                     const SAHBins &sah)
+                     const SAHBins<box_t> &sah)
     {
       float bestCost = CUBQL_INF;
       
       float rAreas[sah.numBins];
       for (int d=0;d<3;d++) {
-        box3f box; box.set_empty();
+        box_t box; box.set_empty();
         int   rCount = 0;
         for (int b=sah.numBins-1;b>=0;--b) {
           auto bin = sah.dims[d].bins[b];
@@ -108,7 +111,7 @@ namespace cuBQL {
     __global__
     void initState(BuildState *buildState,
                    NodeState  *nodeStates,
-                   TempNode   *nodes)
+                   TempNode<box_t<T,D>>   *nodes)
     {
       // buildState->nodes = nodes;
       buildState->numNodes = 2;
@@ -124,9 +127,9 @@ namespace cuBQL {
 
     template<typename T, int D>
     __global__
-    void initPrims(TempNode    *nodes,
+    void initPrims(TempNode<box_t<T,D>>    *nodes,
                    PrimState   *primState,
-                   const box3f *primBoxes,
+                   const box_t<T,D> *primBoxes,
                    uint32_t     numPrims)
     {
       const int primID = threadIdx.x+blockIdx.x*blockDim.x;
@@ -135,7 +138,7 @@ namespace cuBQL {
       auto &me = primState[primID];
       me.primID = primID;
                                                     
-      const box3f box = primBoxes[primID];
+      const box_t<T,D> box = primBoxes[primID];
       if (box.get_lower(0) <= box.get_upper(0)) {
         me.nodeID = 0;
         me.done   = false;
@@ -150,12 +153,12 @@ namespace cuBQL {
 
     template<typename T, int D>
     __global__
-    void binPrims(SAHBins          *sahBins,
+    void binPrims(SAHBins<box_t<T,D>>          *sahBins,
                   int               sahNodeBegin,
                   int               sahNodeEnd,
-                  TempNode         *nodes,
+                  TempNode<box_t<T,D>>         *nodes,
                   PrimState        *primState,
-                  const box3f      *primBoxes,
+                  const box_t<T,D>      *primBoxes,
                   uint32_t          numPrims)
     {
       const int primID = threadIdx.x+blockIdx.x*blockDim.x;
@@ -168,22 +171,22 @@ namespace cuBQL {
       if (nodeID < sahNodeBegin || nodeID >= sahNodeEnd)
         return;
 
-      const box3f primBox = primBoxes[primID];
+      const box_t<T,D> primBox = primBoxes[primID];
 
       auto &sah = sahBins[nodeID-sahNodeBegin];
-      box3f centBounds = nodes[nodeID].openBranch.centBounds.make_box();
+      box_t<T,D> centBounds = nodes[nodeID].openBranch.centBounds.make_box();
 #pragma unroll 3 
       for (int d=0;d<3;d++) {
         int bin = 0;
-        float lo = centBounds.get_lower(d);
-        float hi = centBounds.get_upper(d);
+        T lo = centBounds.get_lower(d);
+        T hi = centBounds.get_upper(d);
         if (hi > lo) {
-          float prim_d = 0.5f*(primBox.get_lower(d)+primBox.get_upper(d));
-          float rel
+          T prim_d = T(0.5)*(primBox.get_lower(d)+primBox.get_upper(d));
+          T rel
             = (prim_d - centBounds.get_lower(d))
             / (centBounds.get_upper(d)-centBounds.get_lower(d)+1e-20f);
-          bin = int(rel*(int)SAHBins::numBins);
-          bin = max(0,min((int)SAHBins::numBins-1,bin));
+          bin = int(rel*(int)SAHBins<box_t<T,D>>::numBins);
+          bin = max(0,min((int)SAHBins<box_t<T,D>>::numBins-1,bin));
           // printf("prim %i in node %i, pos %f %f %f in cent %f %f %f - %f %f %f; dim %i: rel %f bin %i\n",
           //        primID,nodeID,
           //        primBox.lower.x,
@@ -207,7 +210,7 @@ namespace cuBQL {
     __global__
     void closeOpenNodes(BuildState *buildState,
                         NodeState  *nodeStates,
-                        TempNode   *nodes,
+                        TempNode<box_t<T,D>>   *nodes,
                         int numNodes)
     {
       const int nodeID = threadIdx.x+blockIdx.x*blockDim.x;
@@ -233,11 +236,11 @@ namespace cuBQL {
     template<typename T, int D>
     __global__
     void selectSplits(BuildState *buildState,
-                      SAHBins    *sahBins,
+                      SAHBins<box_t<T,D>>    *sahBins,
                       int         sahNodeBegin,
                       int         sahNodeEnd,
                       NodeState  *nodeStates,
-                      TempNode   *nodes,
+                      TempNode<box_t<T,D>>   *nodes,
                       BuildConfig buildConfig)
     {
       const int nodeID = sahNodeBegin + threadIdx.x+blockIdx.x*blockDim.x;
@@ -285,9 +288,9 @@ namespace cuBQL {
     template<typename T, int D>
     __global__
     void updatePrims(NodeState       *nodeStates,
-                     TempNode        *nodes,
+                     TempNode<box_t<T,D>>        *nodes,
                      PrimState       *primStates,
-                     const box3f     *primBoxes,
+                     const box_t<T,D>     *primBoxes,
                      int numPrims)
     {
       const int primID = threadIdx.x+blockIdx.x*blockDim.x;
@@ -304,18 +307,18 @@ namespace cuBQL {
       }
 
       auto open = nodes[me.nodeID].openNode;
-      const box3f primBox = primBoxes[me.primID];
+      const box_t<T,D> primBox = primBoxes[me.primID];
 
       const int d = open.dim;
-      float lo = open.centBounds.get_lower(d);
-      float hi = open.centBounds.get_upper(d);
+      T lo = open.centBounds.get_lower(d);
+      T hi = open.centBounds.get_upper(d);
       
-      float prim_d = 0.5f*(primBox.get_lower(d)+primBox.get_upper(d));
-      float rel
+      T prim_d = T(0.5)*(primBox.get_lower(d)+primBox.get_upper(d));
+      T rel
         = (prim_d - lo)
         / (hi - lo + 1e-20f);
-      int prim_bin = int(rel*(int)SAHBins::numBins);
-      prim_bin = max(0,min((int)SAHBins::numBins-1,prim_bin));
+      int prim_bin = int(rel*(int)SAHBins<box_t<T,D>>::numBins);
+      prim_bin = max(0,min((int)SAHBins<box_t<T,D>>::numBins-1,prim_bin));
       
       int side = (prim_bin >= open.bin);
       // printf("updateprim %i node %i state %i dim %i bin %i -> prim bin %i -> side %i\n",
@@ -335,7 +338,7 @@ namespace cuBQL {
        of this nodes' items in that bvh.primIDs[] list. */
     template<typename T, int D>
     __global__
-    void writePrimsAndLeafOffsets(TempNode        *nodes,
+    void writePrimsAndLeafOffsets(TempNode<box_t<T,D>>        *nodes,
                                   uint32_t        *bvhItemList,
                                   PrimState       *primStates,
                                   int              numPrims)
@@ -355,13 +358,13 @@ namespace cuBQL {
 
     template<typename T, int D>
     __global__
-    void clearBins(SAHBins *sahBins, int numActive)
+    void clearBins(SAHBins<box_t<T,D>> *sahBins, int numActive)
     {
       const int tid = threadIdx.x+blockIdx.x*blockDim.x;
       if (tid >= numActive) return;
 
       for (int d=0;d<3;d++)
-        for (int b=0;b<SAHBins::numBins;b++) {
+        for (int b=0;b<SAHBins<box_t<T,D>>::numBins;b++) {
           auto &mine = sahBins[tid].dims[d].bins[b];
           mine.count = 0;
           mine.bounds.set_empty();
@@ -373,7 +376,7 @@ namespace cuBQL {
     template<typename T, int D>
     __global__
     void writeNodes(typename BinaryBVH<T,D>::Node *finalNodes,
-                    TempNode  *tempNodes,
+                    TempNode<box_t<T,D>>  *tempNodes,
                     int        numNodes)
     {
       const int nodeID = threadIdx.x+blockIdx.x*blockDim.x;
@@ -384,7 +387,7 @@ namespace cuBQL {
     }
 
     template<typename T, int D>
-    void sahBuilder(BinaryBVH<T,D>  &bvh,
+    inline void sahBuilder(BinaryBVH<T,D>  &bvh,
                     const box_t<T,D> *boxes,
                     uint32_t     _numPrims,
                     BuildConfig  buildConfig,
@@ -392,24 +395,25 @@ namespace cuBQL {
                     GpuMemoryResource& memResource)
     { throw std::runtime_error("cuBQL::cuda::sahBuilder() only makes sense for float3 data"); }
 
-    template<typename T=float, int D=3>
-    void sahBuilder(BinaryBVH<float,3>  &bvh,
-                    const box_t<float,3> *boxes,
-                    uint32_t     _numPrims,
-                    BuildConfig  buildConfig,
-                    cudaStream_t s,
-                    GpuMemoryResource& memResource)
+    template<typename T>
+    inline void real3_sahBuilder(BinaryBVH<T,3>  &bvh,
+                          const box_t<T,3> *boxes,
+                          uint32_t     _numPrims,
+                          BuildConfig  buildConfig,
+                          cudaStream_t s,
+                          GpuMemoryResource& memResource)
     {
+      enum { D=3 };
       // ==================================================================
       // do build on temp nodes
       // ==================================================================
       int         numPrims   = _numPrims;
-      TempNode   *tempNodes  = 0;
+      TempNode<box_t<T,D>>   *tempNodes  = 0;
       NodeState  *nodeStates = 0;
       PrimState  *primStates = 0;
       BuildState *buildState = 0;
-      SAHBins    *sahBins    = 0;
-      int maxActiveSAHs = 4+numPrims/(8*SAHBins::numBins);
+      SAHBins<box_t<T,D>>    *sahBins    = 0;
+      int maxActiveSAHs = 4+numPrims/(8*SAHBins<box_t<T,D>>::numBins);
       _ALLOC(tempNodes,2*numPrims,s,memResource);
       _ALLOC(nodeStates,2*numPrims,s,memResource);
       _ALLOC(primStates,numPrims,s,memResource);
@@ -537,11 +541,29 @@ namespace cuBQL {
 
       gpuBuilder_impl::refit(bvh,boxes,s,memResource);
     }
+
+    template<>
+    inline void sahBuilder(BinaryBVH<float,3>  &bvh,
+                    const box_t<float,3> *boxes,
+                    uint32_t     _numPrims,
+                    BuildConfig  buildConfig,
+                    cudaStream_t s,
+                    GpuMemoryResource& memResource)
+    { real3_sahBuilder<float>(bvh,boxes,_numPrims,buildConfig,s,memResource); }
+    
+    template<>
+    inline void sahBuilder(BinaryBVH<double,3>  &bvh,
+                    const box_t<double,3> *boxes,
+                    uint32_t     _numPrims,
+                    BuildConfig  buildConfig,
+                    cudaStream_t s,
+                    GpuMemoryResource& memResource)
+    { real3_sahBuilder<double>(bvh,boxes,_numPrims,buildConfig,s,memResource); }
   } // ::cuBQL::sahBuilder_impl
 
   namespace cuda {
     template<typename T, int D>
-    void sahBuilder(BinaryBVH<T,D>    &bvh,
+    inline void sahBuilder(BinaryBVH<T,D>    &bvh,
                     const box_t<T,D>  *boxes,
                     uint32_t           numPrims,
                     BuildConfig        buildConfig,
