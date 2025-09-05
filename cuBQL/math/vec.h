@@ -376,9 +376,31 @@ namespace cuBQL {
   CUBQL_OPERATOR(operator+,+)
   CUBQL_OPERATOR(operator-,-)
   CUBQL_OPERATOR(operator*,*)
-  CUBQL_OPERATOR(operator*=,*=)
   CUBQL_OPERATOR(operator/,/)
 #undef CUBQL_OPERATOR
+
+#define CUBQL_EQ_OPERATOR(long_op, op)                  \
+  /* vec:vec */                                         \
+  template<typename T, int D>                           \
+  inline __cubql_both                                   \
+  vec_t<T,D> &long_op(vec_t<T,D> &a, vec_t<T,D> b)      \
+  {                                                     \
+    CUBQL_PRAGMA_UNROLL                                 \
+      for (int i=0;i<D;i++) a[i] op b[i];               \
+    return a;                                           \
+  }                                                     \
+  /* vec:scalar */                                      \
+  template<typename T, int D>                           \
+  inline __cubql_both                                   \
+  vec_t<T,D> &long_op(vec_t<T,D> &a, T b)               \
+  {                                                     \
+    CUBQL_PRAGMA_UNROLL                                 \
+      for (int i=0;i<D;i++) a[i] op b;                  \
+    return a;                                           \
+  }                                                     \
+  
+  CUBQL_EQ_OPERATOR(operator*=,*=)
+#undef CUBQL_EQ_OPERATOR
 
   // --------- vec << int -------------
   inline __cubql_both vec_t<int,2> operator<<(vec_t<int,2> v, int b)
@@ -754,8 +776,14 @@ namespace cuBQL {
 
 
   template<typename T>
+  inline __cubql_both dbgout operator<<(dbgout o, vec_t<T,2> v)
+  { o << "(" << v.x << "," << v.y << ")"; return o; }
+  template<typename T>
   inline __cubql_both dbgout operator<<(dbgout o, vec_t<T,3> v)
   { o << "(" << v.x << "," << v.y << "," << v.z << ")"; return o; }
+  template<typename T>
+  inline __cubql_both dbgout operator<<(dbgout o, vec_t<T,4> v)
+  { o << "(" << v.x << "," << v.y << "," << v.z << "," << v.w << ")"; return o; }
   
   /*! @} */
   // ------------------------------------------------------------------
