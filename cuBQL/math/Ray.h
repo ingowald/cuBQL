@@ -11,48 +11,61 @@ namespace cuBQL {
   // =============================================================================
   // *** INTERFACE ***
   // =============================================================================
-  
-  struct Ray {
-    __cubql_both Ray(vec3f org, vec3f dir, float tmin, float tmax);
-    __cubql_both Ray(vec3f org, vec3f dir);
-    vec3f origin;
-    float tmin = 0.f;
-    vec3f direction;
-    float tmax = CUBQL_INF;
+
+  template<typename T=float>
+  struct ray_t {
+    using vec3 = vec_t<T,3>;
+    
+    __cubql_both ray_t(vec3 org, vec3 dir, T tMin, T tMax);
+    __cubql_both ray_t(vec3 org, vec3 dir);
+    vec3 origin;
+    vec3 direction;
+    T tMin = T(0);
+    T tMax = T(CUBQL_INF);
   };
+
+  using ray3f = ray_t<float>;
+  using ray3d = ray_t<double>;
+  using Ray = ray_t<float>;
 
   template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
   struct AxisAlignedRay {
     __cubql_both AxisAlignedRay(const vec3f origin);
-    __cubql_both AxisAlignedRay(const vec3f origin, float tmin, float tmax);
+    __cubql_both AxisAlignedRay(const vec3f origin, float tMin, float tMax);
     
     vec3f origin;
-    float tmin=0.f, tmax=CUBQL_INF;
+    float tMin=0.f, tMax=CUBQL_INF;
 
     inline __cubql_both vec3f direction() const;
     inline __cubql_both Ray   makeRay() const;
   };
 
+  template<typename T>
   inline __cubql_both
-  bool rayIntersectsBox(Ray ray, box3f box);
+  bool rayIntersectsBox(ray_t<T> ray, box_t<T,3> box);
   
   // =============================================================================
   // *** IMPLEMENTATION ***
   // =============================================================================
 
-  inline __cubql_both Ray::Ray(vec3f org, vec3f dir, float tmin, float tmax)
-    : origin(org), direction(dir), tmin(tmin), tmax(tmax)
+  template<typename T>
+  inline __cubql_both ray_t<T>::ray_t(typename ray_t<T>::vec3 org,
+                                      typename ray_t<T>::vec3 dir,
+                                      T tMin, T tMax)
+    : origin(org), direction(dir), tMin(tMin), tMax(tMax)
   {}
   
-  inline __cubql_both Ray::Ray(vec3f org, vec3f dir)
+  template<typename T>
+  inline __cubql_both ray_t<T>::ray_t(typename ray_t<T>::vec3 org,
+                                      typename ray_t<T>::vec3 dir)
     : origin(org), direction(dir)
   {}
   
   template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
   inline __cubql_both
   AxisAlignedRay<axis,sign>::AxisAlignedRay(const vec3f origin,
-                                            float tmin, float tmax)
-    : origin(origin), tmin(tmin), tmax(tmax)
+                                            float tMin, float tMax)
+    : origin(origin), tMin(tMin), tMax(tMax)
   {}
   
   template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
@@ -71,36 +84,23 @@ namespace cuBQL {
     };
   }
 
-  inline __cubql_both
-  bool rayIntersectsBox(Ray ray, box3f box)
-  {
-    vec3f inv = rcp(ray.direction);
-    vec3f lo = (box.lower - ray.origin) * inv;
-    vec3f hi = (box.upper - ray.origin) * inv;
-    vec3f nr = min(lo,hi);
-    vec3f fr = max(lo,hi);
-    float tin  = max(ray.tmin,reduce_max(nr));
-    float tout = min(ray.tmax,reduce_min(fr));
-    return tin <= tout;
-  }
-  
-  
   template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
-  inline __cubql_both Ray AxisAlignedRay<axis,sign>::makeRay() const
+  inline __cubql_both ray_t<float> AxisAlignedRay<axis,sign>::makeRay() const
   {
-    return { origin, tmin, direction(), tmax };
+    return { origin, tMin, direction(), tMax };
   }
 
   template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
   inline __cubql_both dbgout operator<<(dbgout o, AxisAlignedRay<axis,sign> ray)
   {
-    o << "AARay<"<<axis<<","<<sign<<">("<<ray.origin<<",["<<ray.tmin<<","<<ray.tmax<<"])";
+    o << "AARay<"<<axis<<","<<sign<<">("<<ray.origin<<",["<<ray.tMin<<","<<ray.tMax<<"])";
     return o;
   }
 
-  inline __cubql_both dbgout operator<<(dbgout o, Ray ray)
+  template<typename T>
+  inline __cubql_both dbgout operator<<(dbgout o, ray_t<T> ray)
   {
-    o << "Ray{"<<ray.origin<<"+["<<ray.tmin<<","<<ray.tmax<<"]*"<<ray.direction<<"}";
+    o << "Ray{"<<ray.origin<<"+["<<ray.tMin<<","<<ray.tMax<<"]*"<<ray.direction<<"}";
     return o;
   }
 

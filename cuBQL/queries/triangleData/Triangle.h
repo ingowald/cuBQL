@@ -51,6 +51,15 @@ namespace cuBQL {
     int numIndices;
   };
 
+  template<typename T>
+  struct triangle_t
+  {
+    using vec3 = vec_t<T,3>;
+    vec3 a;
+    vec3 b;
+    vec3 c;
+  };
+  
   // =============================================================================
   // *** IMPLEMENTATION ***
   // =============================================================================

@@ -405,6 +405,10 @@ namespace cuBQL {
   inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
   { printf("%li",i); return o; }
 #endif
+
+  inline __cubql_both float abst(float f)   { return (f < 0.f) ? -f : f; }
+  inline __cubql_both double abst(double f) { return (f < 0. ) ? -f : f; }
+  
 };
 
 
