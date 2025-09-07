@@ -394,6 +394,8 @@ namespace cuBQL {
   { printf("%u",i); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, float f)
   { printf("%f",f); return o; }
+  inline __cubql_both dbgout operator<<(dbgout o, double f)
+  { printf("%lf",f); return o; }
 #ifdef _WIN32
   inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
   { printf("%llu",(unsigned long long)i); return o; }
@@ -405,6 +407,13 @@ namespace cuBQL {
   inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
   { printf("%li",i); return o; }
 #endif
+  template <typename T>
+  inline __cubql_both dbgout operator<<(dbgout o, T *ptr)
+  { printf("%p",ptr); return o; }
+
+  inline __cubql_both float abst(float f)   { return (f < 0.f) ? -f : f; }
+  inline __cubql_both double abst(double f) { return (f < 0. ) ? -f : f; }
+  
 };
 
 
