@@ -1,4 +1,4 @@
-// Copyright 2023 Ingo Wald
+// Copyright 2025 NVIDIA Corp
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
