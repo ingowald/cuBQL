@@ -133,8 +133,6 @@ namespace cuBQL {
 
   using AffineSpace2f      = AffineSpaceT<LinearSpace2f>;
   using AffineSpace3f      = AffineSpaceT<LinearSpace3f>;
-  // using AffineSpace3fa     = AffineSpaceT<LinearSpace3fa>;
-  using OrthonormalSpace3f = AffineSpaceT<Quaternion3f >;
 
   using affine2f = AffineSpace2f;
   using affine3f = AffineSpace3f;
@@ -147,22 +145,4 @@ namespace cuBQL {
 #undef VectorT
 #undef ScalarT
 
-
-  // inline __cubql_both box3f xfmBounds(const affine3f &xfm,
-  //                                 const box3f &box)
-  // {
-  //   box3f dst;
-  //   const vec3f lo = box.lower;
-  //   const vec3f hi = box.upper;
-  //   dst.extend(xfmPoint(xfm,vec3f(lo.x,lo.y,lo.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(lo.x,lo.y,hi.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(lo.x,hi.y,lo.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(lo.x,hi.y,hi.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(hi.x,lo.y,lo.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(hi.x,lo.y,hi.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(hi.x,hi.y,lo.z)));
-  //   dst.extend(xfmPoint(xfm,vec3f(hi.x,hi.y,hi.z)));
-  //   return dst;
-  // }
-    
 } // ::cuBQL
