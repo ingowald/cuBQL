@@ -1,3 +1,6 @@
+cuBQL has moved! going forwrad, please use https://github.com/NVIDIA/cuBQL !
+
+
 # cuBQL - A CUDA "BVH Build-and-Query" Library
 
 CuBQL (say: "cubicle") is a (mostly) header-only CUDA/C++ library for the
