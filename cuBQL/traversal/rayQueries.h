@@ -101,7 +101,8 @@ namespace cuBQL {
 
   template<typename T>
   inline __cubql_both
-  bool rayIntersectsBox(ray_t<T> ray, vec_t<T,3> rcp_dir, box_t<T,3> box)
+  bool rayIntersectsBox(float &ret_t0,
+                        ray_t<T> ray, vec_t<T,3> rcp_dir, box_t<T,3> box)
   {
     using vec3 = vec_t<T,3>;
     vec3 lo = (box.lower - ray.origin) * rcp_dir;
@@ -110,6 +111,7 @@ namespace cuBQL {
     vec3 fr = max(lo,hi);
     T tin  = max(ray.tMin,reduce_max(nr));
     T tout = min(ray.tMax,reduce_min(fr));
+    ret_t0 = tin;
     return tin <= tout;
   }
 
@@ -311,8 +313,9 @@ namespace cuBQL {
         uint32_t n1Idx = (uint32_t)node.offset+1;
         node_t n0 = bvh.nodes[n0Idx];
         node_t n1 = bvh.nodes[n1Idx];
-        bool o0 = rayIntersectsBox(ray,rcp_dir,n0.bounds);
-        bool o1 = rayIntersectsBox(ray,rcp_dir,n1.bounds);
+        float node_t0 = 0.f, node_t1 = 0.f;
+        bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
+        bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
         // if (dbg) {
         //   dout << "at node " << node.offset << endl;
@@ -323,10 +326,11 @@ namespace cuBQL {
           
         if (o0) {
           if (o1) {
-            *stackPtr++ = n1.admin;
+            *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
+            node = (node_t0 < node_t1) ? n0.admin : n1.admin;
           } else {
+            node = n0.admin;
           }
-          node = n0.admin;
         } else {
           if (o1) {
             node = n1.admin;
