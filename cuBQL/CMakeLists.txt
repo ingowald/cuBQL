@@ -61,6 +61,8 @@ function(add_specific_instantiation device suffix T D)
   set_target_properties(cuBQL_${device}_${T}${D}
     PROPERTIES
     POSITION_INDEPENDENT_CODE ON
+    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    FOLDER "CuBQL"
     )
   target_link_libraries(cuBQL_${device}_${T}${D}
     PUBLIC
@@ -84,6 +86,7 @@ function(add_specific_instantiation device suffix T D)
   set_target_properties(cuBQL_${device}_${T}${D}_static
     PROPERTIES
     POSITION_INDEPENDENT_CODE ON
+    FOLDER "CuBQL"
     )
   target_link_libraries(cuBQL_${device}_${T}${D}_static
     PUBLIC
@@ -134,6 +137,9 @@ add_library(cuBQL_queries INTERFACE
   queries/pointData/findClosest.h
   queries/pointData/knn.h
   )
+
+set_target_properties(cuBQL_queries PROPERTIES FOLDER "CuBQL")
+
 target_link_libraries(cuBQL_queries
   INTERFACE
   cuBQL
