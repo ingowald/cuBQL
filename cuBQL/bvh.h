@@ -62,9 +62,11 @@ namespace cuBQL {
     using vec_t = cuBQL::vec_t<scalar_t,numDims>;
     using box_t = cuBQL::box_t<scalar_t,numDims>;
 
+    static constexpr int const node_width = 1;
+
     struct CUBQL_ALIGN(16) Node {
       enum { count_bits = 16, offset_bits = 64-count_bits };
-      
+
       box_t    bounds;
 
       struct Admin {
@@ -102,9 +104,12 @@ namespace cuBQL {
   template<typename _scalar_t, int _numDims, int BVH_WIDTH>
   struct WideBVH {
     using scalar_t = _scalar_t;
+
     enum { numDims = _numDims };
     using vec_t = cuBQL::vec_t<scalar_t,numDims>;
     using box_t = cuBQL::box_t<scalar_t,numDims>;
+
+    static constexpr int const node_width = BVH_WIDTH;
 
     /*! a n-wide node of this BVH; note that unlike BinaryBVH::Node
       this is not a "single" node, but actually N nodes merged
@@ -120,7 +125,8 @@ namespace cuBQL {
       } children[BVH_WIDTH];
     };
 
-    Node     *nodes    = 0;
+    using node_t = Node;
+    node_t   *nodes    = 0;
     //! number of (multi-)nodes on this WideBVH
     uint32_t  numNodes = 0;
     uint32_t *primIDs  = 0;
