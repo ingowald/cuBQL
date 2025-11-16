@@ -326,8 +326,13 @@ namespace cuBQL {
           
         if (o0) {
           if (o1) {
+#if 1
+            *stackPtr++ = n1.admin;
+            node = n0.admin;
+#else
             *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
             node = (node_t0 < node_t1) ? n0.admin : n1.admin;
+#endif
           } else {
             node = n0.admin;
           }

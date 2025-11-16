@@ -65,7 +65,7 @@ namespace cuBQL {
     
     T e1u,e2u,Pu;
     T e1v,e2v,Pv;
-    if (abst(N.x) >= ::max(abst(N.y),abst(N.z))) {
+    if (abst(N.x) >= max(abst(N.y),abst(N.z))) {
       e1u = e1.y; e2u = e2.y; Pu = P.y;
       e1v = e1.z; e2v = e2.z; Pv = P.z;
     } else if (abst(N.y) > abst(N.z)) {
