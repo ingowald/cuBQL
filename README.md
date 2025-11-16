@@ -1,8 +1,8 @@
 # cuBQL - A CUDA "BVH Build-and-Query" Library
 
 Build Status:
-[![Windows](https://github.com/NVIDIA/cuBQLRT/actions/workflows/Windows.yml/badge.svg)](https://github.com/NVIDIA/cuBQLRT/actions/workflows/Windows.yml) 
-[![Ubuntu](https://github.com/NVIDIA/cuBQLRT/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/NVIDIA/cuBQLRT/actions/workflows/Ubuntu.yml)
+[![Windows](https://github.com/NVIDIA/cuBQL/actions/workflows/Windows.yml/badge.svg)](https://github.com/NVIDIA/cuBQL/actions/workflows/Windows.yml) 
+[![Ubuntu](https://github.com/NVIDIA/cuBQL/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/NVIDIA/cuBQL/actions/workflows/Ubuntu.yml)
 
 
 CuBQL (say: "cubicle") is a (mostly) header-only CUDA/C++ library for the
