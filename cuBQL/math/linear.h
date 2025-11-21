@@ -321,9 +321,13 @@ namespace cuBQL {
   /*! Shortcuts for common linear spaces. */
   using LinearSpace2f  = LinearSpace2<vec2f> ;
   using LinearSpace3f  = LinearSpace3<vec3f> ;
+  using LinearSpace2d  = LinearSpace2<vec2d> ;
+  using LinearSpace3d  = LinearSpace3<vec3d> ;
   // using LinearSpace3fa = LinearSpace3<vec3fa>;
 
   using linear2f = LinearSpace2f;
   using linear3f = LinearSpace3f;
+  using linear2d = LinearSpace2d;
+  using linear3d = LinearSpace3d;
 
 } // ::cuBQL
