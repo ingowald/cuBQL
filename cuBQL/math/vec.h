@@ -228,13 +228,23 @@ namespace cuBQL {
   using vec3d = vec_t<double,3>;
   using vec4d = vec_t<double,4>;
 
-  using vec2i = vec_t<int,2>;
-  using vec3i = vec_t<int,3>;
-  using vec4i = vec_t<int,4>;
+  using vec2i = vec_t<int32_t,2>;
+  using vec3i = vec_t<int32_t,3>;
+  using vec4i = vec_t<int32_t,4>;
   
   using vec2ui = vec_t<uint32_t,2>;
   using vec3ui = vec_t<uint32_t,3>;
   using vec4ui = vec_t<uint32_t,4>;
+
+
+  using vec2l = vec_t<int64_t,2>;
+  using vec3l = vec_t<int64_t,3>;
+  using vec4l = vec_t<int64_t,4>;
+  
+  using vec2ul = vec_t<uint64_t,2>;
+  using vec3ul = vec_t<uint64_t,3>;
+  using vec4ul = vec_t<uint64_t,4>;
+
 
   template<typename T, int D>
   inline __cubql_both
