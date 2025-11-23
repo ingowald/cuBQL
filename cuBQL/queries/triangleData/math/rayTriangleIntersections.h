@@ -34,7 +34,7 @@ namespace cuBQL {
   // =============================================================================
 
   template<typename T>
-  inline __device__
+  inline __cubql_both
   bool RayTriangleIntersection_t<T>::compute(const ray_t<T> &ray,
                                            const triangle_t<T> &tri)
   {
