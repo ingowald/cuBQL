@@ -61,7 +61,7 @@
 
 # define CUBQL_INTERFACE /* nothing - currently not building any special 'cubql.dll' */
 
-#if defined(_MSC_VER)
+#ifndef __PRETTY_FUNCTION__
 #  define __PRETTY_FUNCTION__ __FUNCTION__
 #endif
 
