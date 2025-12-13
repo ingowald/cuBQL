@@ -9,13 +9,18 @@
 #include "cuBQL/traversal/fixedBoxQuery.h"
 
 namespace cuBQL {
-  namespace fixedRayQuery {
 
-    // ******************************************************************
-    // INTERFACE
-    // (which functions this header file provides)
-    // ******************************************************************
-    
+  // ******************************************************************
+  // INTERFACE
+  // (which functions this header file provides)
+  // ******************************************************************
+
+  /*! \namespace fixedRayQuery *Fixed* ray queries are queries on rays
+    for whom the query interval [ray.tMax,ray.tMax] can never change
+    during traversal. The per-prim/per-leaf lambdas can at any point
+    _terminate_ a traveral, but ordering child nodes is not required
+    because ordering shouldn't matter */
+  namespace fixedRayQuery {
     template<typename Lambda>
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
@@ -29,14 +34,14 @@ namespace cuBQL {
                      cuBQL::bvh3f bvh,
                      cuBQL::ray3f ray,
                      bool dbg=false);
-
+    
     /*! traverse BVH with given fixed-length, axis-aligned ray, and
       call lambda for each prim encounterd.
-
+      
       Traversal is UNORDERED (meaning it will NOT try to traverse
       front-to-back) and FIXED-SHAPE (ray will not shrink during
       traversal).
-
+      
       Lambda is expected to return CUBQL_{CONTINUE|TERMINATE}_TRAVERSAL 
     */
     template<int axis, int sign, typename Lambda>
@@ -48,11 +53,11 @@ namespace cuBQL {
     
     /*! traverse BVH with given fixed-length, axis-aligned ray, and
       call lambda for each prim encounterd.
-
+      
       Traversal is UNORDERED (meaning it will NOT try to traverse
       front-to-back) and FIXED-SHAPE (ray will not shrink during
       traversal).
-
+      
       Lambda is expected to return CUBQL_{CONTINUE|TERMINATE}_TRAVERSAL 
     */
     template<int axis, int sign, typename Lambda>
@@ -63,7 +68,15 @@ namespace cuBQL {
                      bool dbg=false);
   }
 
+  /*! \namespace shrinkingRayQuery *Shrinking* ray queries are queries
+    where ray.tMax can shrink during traversal, so hits found in one
+    subtree can shrink ray.tmax such that other subtrees may then
+    later get skipped */
   namespace shrinkingRayQuery {
+    
+    /*! single level BVH ray traversal, provided lambda covers what
+      happens when a ray wants to intersect a given prim within that
+      bvh */
     template<typename Lambda, typename bvh_t, typename ray_t>
     inline __cubql_both
     float forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
@@ -71,15 +84,71 @@ namespace cuBQL {
                       ray_t ray,
                       bool dbg=false);
     
+    /*! single level BVH ray traversal, provided lambda covers what
+      happens when a ray wants to intersect a given prim within that
+      bvh */
     template<typename Lambda, typename bvh_t, typename ray_t>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
                      bvh_t bvh,
                      ray_t &ray,
                      bool dbg=false);
+    
+    namespace twoLevel {
+      /*! two-level BVH ray traversal, where the BVH is made up of a
+        "TLAS" (top-level acceleration structure) that itself contains
+        objects with "BLAS"es (bottom-level acceleration
+        structures). One of the lambdas describes what happens when a
+        ray enters a leaf in a BLAS (just like in the single-level BVH
+        traversal; the other describes what happens when a ray needs
+        to transition from TLAS to BLAS. That second lambda can modify
+        the current ray's org and dir to transform it into the BLASes
+        coordinate frame where required (transforming back is not
+        required, cubql will save/restore the original ray as
+        required), and is supposed to return a new bvh_t to be
+        traversed in the BLAS */
+      template<typename EnterBlasLambda,
+               typename LeaveBlasLambda,
+               typename ProcessLeafLambda,
+               typename bvh_t, typename ray_t>
+      inline __cubql_both
+      void forEachLeaf(const EnterBlasLambda   &enterBlas,
+                       const LeaveBlasLambda   &leaveBlas,
+                       const ProcessLeafLambda &processLeaf,
+                       bvh_t bvh,
+                       /*! REFERENCE to a ray, so 'enterBlas()' can modify it */
+                       ray_t &ray,
+                       bool dbg=false);
+      
+      /*! two-level BVH ray traversal, where the BVH is made up of a
+        "TLAS" (top-level acceleration structure) that itself contains
+        objects with "BLAS"es (bottom-level acceleration
+        structures). One of the lambdas describes what happens when a
+        ray enters a leaf in a BLAS (just like in the single-level BVH
+        traversal; the other describes what happens when a ray needs
+        to transition from TLAS to BLAS. That second lambda can modify
+        the current ray's org and dir to transform it into the BLASes
+        coordinate frame where required (transforming back is not
+        required, cubql will save/restore the original ray as
+        required), and is supposed to return a new bvh_t to be
+        traversed in the BLAS */
+      template<typename EnterBlasLambda,
+               typename LeaveBlasLambda,
+               typename IntersectPrimLambda,
+               typename bvh_t, typename ray_t>
+      inline __cubql_both
+      void forEachPrim(const EnterBlasLambda     &enterBlas,
+                       const LeaveBlasLambda     &leaveBlas,
+                       const IntersectPrimLambda &intersectPrim,
+                       bvh_t bvh,
+                       /*! REFERENCE to a ray, so 'enterBlas()' can modify it */
+                       ray_t &ray,
+                       bool dbg=false);
+    }
+
   } // ::cuBQL::shrinkingRayQuery
-  
-  
+
+
   // =============================================================================
   // *** IMPLEMENTATION ***
   // =============================================================================
@@ -176,7 +245,6 @@ namespace cuBQL {
     // ------------------------------------------------------------------
     // traverse until there's nothing left to traverse:
     // ------------------------------------------------------------------
-    // if (dbg) dout << "fixedBoxQuery::traverse" << endl;
     while (true) {
 
       // ------------------------------------------------------------------
@@ -196,14 +264,6 @@ namespace cuBQL {
         bvh3f::node_t n1 = bvh.nodes[n1Idx];
         bool o0 = rayIntersectsBox(ray,n0.bounds);
         bool o1 = rayIntersectsBox(ray,n1.bounds);
-
-        // if (dbg) {
-        //   dout << "at node " << node.offset << endl;
-        //   dout << "w/ query box " << queryBox << endl;
-        //   dout << "  " << n0.bounds << " -> " << (int)o0 << endl;
-        //   dout << "  " << n1.bounds << " -> " << (int)o1 << endl;
-        // }
-          
         if (o0) {
           if (o1) {
             *stackPtr++ = n1.admin;
@@ -221,15 +281,11 @@ namespace cuBQL {
         }
       }
 
-      // if (dbg)
-      //   dout << "at leaf ofs " << (int)node.offset << " cnt " << node.count << endl;
       if (node.count != 0) {
         // we're at a valid leaf: call the lambda and see if that gave
         // us a enw, closer cull radius
         int leafResult
           = lambdaToCallOnEachLeaf(bvh.primIDs+node.offset,node.count);
-        // if (dbg)
-        //   dout << "leaf returned " << leafResult << endl;
         if (leafResult == CUBQL_TERMINATE_TRAVERSAL)
           return;
       }
@@ -237,7 +293,6 @@ namespace cuBQL {
       // pop next un-traversed node from stack, discarding any nodes
       // that are more distant than whatever query radius we now have
       // ------------------------------------------------------------------
-      // if (dbg) dout << "rem stack depth " << (stackPtr-traversalStack) << endl;
       if (stackPtr == traversalStack)
         return;
       node = *--stackPtr;
@@ -286,9 +341,129 @@ namespace cuBQL {
     typename node_t::Admin traversalStack[64], *stackPtr = traversalStack;
     typename node_t::Admin node = bvh.nodes[0].admin;
 
-    if (ray.direction.x == 0.f) ray.direction.x = T(1e-20);
-    if (ray.direction.y == 0.f) ray.direction.y = T(1e-20);
-    if (ray.direction.z == 0.f) ray.direction.z = T(1e-20);
+    if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
+    if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
+    if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
+    vec_t<T,3> rcp_dir = rcp(ray.direction);
+      
+    // ------------------------------------------------------------------
+    // traverse until there's nothing left to traverse:
+    // ------------------------------------------------------------------
+    while (true) {
+
+      // ------------------------------------------------------------------
+      // traverse INNER nodes downward; breaking out if we either find
+      // a leaf within the current search radius, or found a dead-end
+      // at which we need to pop
+      // ------------------------------------------------------------------
+      while (true) {
+        if (node.count != 0)
+          // it's a boy! - seriously: this is not a inner node, step
+          // out of down-travesal and let leaf code pop in.
+          break;
+
+        uint32_t n0Idx = (uint32_t)node.offset+0;
+        uint32_t n1Idx = (uint32_t)node.offset+1;
+        node_t n0 = bvh.nodes[n0Idx];
+        node_t n1 = bvh.nodes[n1Idx];
+        float node_t0 = 0.f, node_t1 = 0.f;
+        bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
+        bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
+
+        if (o0) {
+          if (o1) {
+            *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
+            node = (node_t0 < node_t1) ? n0.admin : n1.admin;
+          } else {
+            node = n0.admin;
+          }
+        } else {
+          if (o1) {
+            node = n1.admin;
+          } else {
+            // both children are too far away; this is a dead end
+            node.count = 0;
+            break;
+          }
+        }
+      }
+
+      if (node.count != 0) {
+        // we're at a valid leaf: call the lambda and see if that gave
+        // us a enw, closer cull radius
+        ray.tMax
+          = lambdaToCallOnEachLeaf(bvh.primIDs+node.offset,node.count);
+      }
+      // ------------------------------------------------------------------
+      // pop next un-traversed node from stack, discarding any nodes
+      // that are more distant than whatever query radius we now have
+      // ------------------------------------------------------------------
+      if (stackPtr == traversalStack)
+        return ray.tMax;
+      node = *--stackPtr;
+    }
+  }
+
+  template<typename Lambda, typename bvh_t, typename ray_t>
+  inline __cubql_both
+  void shrinkingRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
+                                      bvh_t bvh,
+                                      ray_t &ray,
+                                      bool dbg)
+  {
+    auto perLeaf = [dbg,bvh,&ray,lambdaToExecuteForEachCandidate]
+      (const uint32_t *leaf, int count) {
+      for (int i=0;i<count;i++)
+        ray.tMax = lambdaToExecuteForEachCandidate(leaf[i]);
+      return ray.tMax;
+    };
+    shrinkingRayQuery::forEachLeaf(perLeaf,bvh,ray,dbg);
+  }
+
+
+
+  /*! two-level BVH ray traversal, where the BVH is made up of a
+    "TLAS" (top-level acceleration structure) that itself contains
+    objects with "BLAS"es (bottom-level acceleration
+    structures). One of the lambdas describes what happens when a
+    ray enters a leaf in a BLAS (just like in the single-level BVH
+    traversal; the other describes what happens when a ray needs
+    to transition from TLAS to BLAS. That second lambda can modify
+    the current ray's org and dir to transform it into the BLASes
+    coordinate frame where required (transforming back is not
+    required, cubql will save/restore the original ray as
+    required), and is supposed to return a new bvh_t to be
+    traversed in the BLAS */
+  template<typename EnterBlasLambda,
+           typename LeaveBlasLambda,
+           typename ProcessLeafLambda,
+           typename bvh_t, typename ray_t>
+  inline __cubql_both
+  void shrinkingRayQuery::twoLevel::
+  forEachLeaf(const EnterBlasLambda   &enterBlas,
+              const LeaveBlasLambda   &leaveBlas,
+              const ProcessLeafLambda &processLeaf,
+              bvh_t bvh,
+              /*! REFERENCE to a ray, so 'enterBlas()' can modify it */
+              ray_t &ray,
+              bool dbg)
+  {
+    using node_t = typename bvh_t::node_t;
+    using T = typename bvh_t::scalar_t;
+    struct StackEntry {
+      uint32_t idx;
+    };
+    typename node_t::Admin
+      traversalStack[64],
+      *stackPtr = traversalStack,
+      *blasStackBase = nullptr;
+    typename node_t::Admin node = bvh.nodes[0].admin;
+
+    node_t *tlasSavedNodePtr = 0;
+    
+    if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
+    if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
+    if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
     vec_t<T,3> rcp_dir = rcp(ray.direction);
       
     // ------------------------------------------------------------------
@@ -317,22 +492,10 @@ namespace cuBQL {
         bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
-        // if (dbg) {
-        //   dout << "at node " << node.offset << endl;
-        //   dout << "w/ query box " << queryBox << endl;
-        //   dout << "  " << n0.bounds << " -> " << (int)o0 << endl;
-        //   dout << "  " << n1.bounds << " -> " << (int)o1 << endl;
-        // }
-          
         if (o0) {
           if (o1) {
-#if 1
-            *stackPtr++ = n1.admin;
-            node = n0.admin;
-#else
             *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
             node = (node_t0 < node_t1) ? n0.admin : n1.admin;
-#endif
           } else {
             node = n0.admin;
           }
@@ -346,40 +509,73 @@ namespace cuBQL {
           }
         }
       }
-
-      // if (dbg)
-      //   dout << "at leaf ofs " << (int)node.offset << " cnt " << node.count << endl;
+ 
       if (node.count != 0) {
-        // we're at a valid leaf: call the lambda and see if that gave
-        // us a enw, closer cull radius
-        ray.tMax
-          = lambdaToCallOnEachLeaf(bvh.primIDs+node.offset,node.count);
+        if (blasStackBase == nullptr) {
+          // we are _not_ in a BLAS, yet - let's enter
+          tlasSavedNodePtr = bvh.nodes;
+          bvh_t blas = enterBlas(ray,/*instID:*/node.offset);
+          bvh.nodes = blas.nodes;
+          blasStackBase = stackPtr;
+        } else {
+          // we're at a valid leaf: call the lambda and see if that gave
+          // us a new, closer cull radius
+          ray.tMax
+            = processLeaf(bvh.primIDs+node.offset,node.count);
+        }
       }
       // ------------------------------------------------------------------
       // pop next un-traversed node from stack, discarding any nodes
       // that are more distant than whatever query radius we now have
       // ------------------------------------------------------------------
-      // if (dbg) dout << "rem stack depth " << (stackPtr-traversalStack) << endl;
+      if (stackPtr == blasStackBase) {
+        leaveBlas(ray);
+        blasStackBase = nullptr;
+        bvh.nodes = tlasSavedNodePtr;
+      }
       if (stackPtr == traversalStack)
-        return ray.tMax;
+        return;// ray.tMax;
       node = *--stackPtr;
     }
   }
-
-  template<typename Lambda, typename bvh_t, typename ray_t>
+  
+  /*! two-level BVH ray traversal, where the BVH is made up of a
+    "TLAS" (top-level acceleration structure) that itself contains
+    objects with "BLAS"es (bottom-level acceleration
+    structures). One of the lambdas describes what happens when a
+    ray enters a leaf in a BLAS (just like in the single-level BVH
+    traversal; the other describes what happens when a ray needs
+    to transition from TLAS to BLAS. That second lambda can modify
+    the current ray's org and dir to transform it into the BLASes
+    coordinate frame where required (transforming back is not
+    required, cubql will save/restore the original ray as
+    required), and is supposed to return a new bvh_t to be
+    traversed in the BLAS */
+  template<typename EnterBlasLambda,
+           typename LeaveBlasLambda,
+           typename IntersectPrimLambda,
+           typename bvh_t, typename ray_t>
   inline __cubql_both
-  void shrinkingRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                                      bvh_t bvh,
-                                      ray_t &ray,
-                                      bool dbg)
+  void shrinkingRayQuery::twoLevel::
+  forEachPrim(const EnterBlasLambda     &enterBlas,
+              const LeaveBlasLambda     &leaveBlas,
+              const IntersectPrimLambda &intersectPrim,
+              bvh_t bvh,
+              /*! REFERENCE to a ray, so 'enterBlas()' can modify it */
+              ray_t &ray,
+              bool dbg)
   {
-    auto perLeaf = [dbg,bvh,&ray,lambdaToExecuteForEachCandidate]
+    auto perLeaf = [dbg,bvh,&ray,
+                    enterBlas,
+                    leaveBlas,
+                    intersectPrim]
       (const uint32_t *leaf, int count) {
       for (int i=0;i<count;i++)
-        ray.tMax = lambdaToExecuteForEachCandidate(leaf[i]);
+        ray.tMax = min(ray.tMax,intersectPrim(leaf[i]));
       return ray.tMax;
     };
-    shrinkingRayQuery::forEachLeaf(perLeaf,bvh,ray,dbg);
+    shrinkingRayQuery::twoLevel::forEachLeaf
+      (enterBlas,leaveBlas,perLeaf,bvh,ray,dbg);
   }
-    
+  
 } // ::cuBQL
