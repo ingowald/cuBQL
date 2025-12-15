@@ -149,9 +149,9 @@ namespace cuBQL {
   } // ::cuBQL::shrinkingRayQuery
 
 
-  // =============================================================================
+  // =========================================================================
   // *** IMPLEMENTATION ***
-  // =============================================================================
+  // =========================================================================
 
   template<typename T>
   inline __cubql_both
@@ -453,13 +453,16 @@ namespace cuBQL {
     struct StackEntry {
       uint32_t idx;
     };
+    enum { STACK_DEPTH=128 };
     typename node_t::Admin
-      traversalStack[64],
+      traversalStack[STACK_DEPTH],
       *stackPtr = traversalStack,
       *blasStackBase = nullptr;
     typename node_t::Admin node = bvh.nodes[0].admin;
 
-    node_t *tlasSavedNodePtr = 0;
+    node_t   *tlasSavedNodePtr = 0;
+    uint32_t *tlasSavedPrimIDs = 0;
+    vec3f saved_dir, saved_org;
     
     if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
     if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
@@ -478,11 +481,47 @@ namespace cuBQL {
       // at which we need to pop
       // ------------------------------------------------------------------
       while (true) {
-        // if (dbg) printf("node %i.%i\n",(int)node.offset,(int)node.count);
-        if (node.count != 0)
-          // it's a boy! - seriously: this is not a inner node, step
-          // out of down-travesal and let leaf code pop in.
-          break;
+        if (dbg) printf("node %i.%i\n",(int)node.offset,(int)node.count);
+        if (node.count != 0) {
+          // it's a boy! - seriously: this is not a inner node; so
+          // we're either at a final leaf, or at an instance node
+          if (blasStackBase != nullptr)
+            // it's a real leaf, in a blas; break out here and let
+            // leaf code trigger.
+            break;
+          // it's not a real leaf, so this must be a instance node
+          tlasSavedNodePtr = bvh.nodes;
+          tlasSavedPrimIDs = bvh.primIDs;
+          if (node.count != 1)
+            printf("TWO-LEVEL BVH MUST BE BUILT WITH 1 PRIM PER LEAF!\n");
+          if (dbg)
+            printf("inner-leaf primIDs %p ofs %i count %i\n",
+                   bvh.primIDs,
+                   (int)node.offset,
+                   (int)node.count);
+              
+          int instID
+            = bvh.primIDs
+            ? bvh.primIDs[node.offset]
+            : node.offset;
+
+          saved_dir = ray.direction;
+          saved_org = ray.origin;
+          bvh_t blas;
+          ray_t transformed_ray = ray;
+          enterBlas(transformed_ray,blas,instID);
+          ray.origin = transformed_ray.origin;
+          ray.direction = transformed_ray.direction;
+          rcp_dir = rcp(ray.direction);
+          bvh.nodes     = blas.nodes;
+          bvh.primIDs   = blas.primIDs;
+          blasStackBase = stackPtr;
+          node          = bvh.nodes[0].admin;
+          // now check if those blas root node is _also_ a leaf:
+          if (node.count != 0)
+            break;
+          if (dbg) printf("new node %i.%i\n",(int)node.offset,(int)node.count);
+        }          
 
         uint32_t n0Idx = (uint32_t)node.offset+0;
         uint32_t n1Idx = (uint32_t)node.offset+1;
@@ -492,8 +531,16 @@ namespace cuBQL {
         bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
+        if (dbg)
+          printf("children L hit %i dist %f R hit %i dist %f\n",
+                 int(o0),node_t0,
+                 int(o1),node_t1);
         if (o0) {
           if (o1) {
+            if (stackPtr-traversalStack >= STACK_DEPTH) {
+              return;
+            }
+            
             *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
             node = (node_t0 < node_t1) ? n0.admin : n1.admin;
           } else {
@@ -510,28 +557,27 @@ namespace cuBQL {
         }
       }
  
-      if (node.count != 0) {
-        if (blasStackBase == nullptr) {
-          // we are _not_ in a BLAS, yet - let's enter
-          tlasSavedNodePtr = bvh.nodes;
-          bvh_t blas = enterBlas(ray,/*instID:*/node.offset);
-          bvh.nodes = blas.nodes;
-          blasStackBase = stackPtr;
-        } else {
-          // we're at a valid leaf: call the lambda and see if that gave
-          // us a new, closer cull radius
-          ray.tMax
-            = processLeaf(bvh.primIDs+node.offset,node.count);
-        }
+      if (node.count != 0 && blasStackBase != nullptr) {
+        // we're at a valid leaf: call the lambda and see if that gave
+        // us a new, closer cull radius
+        if (dbg)
+          printf("trav leaf-leaf primIDs %p offset %i count %i\n",
+                 bvh.primIDs,(int)node.offset,(int)node.count);
+        ray.tMax
+          = processLeaf(bvh.primIDs,(int)node.offset,(int)node.count);
       }
       // ------------------------------------------------------------------
       // pop next un-traversed node from stack, discarding any nodes
       // that are more distant than whatever query radius we now have
       // ------------------------------------------------------------------
       if (stackPtr == blasStackBase) {
-        leaveBlas(ray);
+        leaveBlas();
+        ray.direction = saved_dir;
+        ray.origin    = saved_org;
+        rcp_dir = rcp(ray.direction);
         blasStackBase = nullptr;
-        bvh.nodes = tlasSavedNodePtr;
+        bvh.nodes   = tlasSavedNodePtr;
+        bvh.primIDs = tlasSavedPrimIDs;
       }
       if (stackPtr == traversalStack)
         return;// ray.tMax;
@@ -565,13 +611,26 @@ namespace cuBQL {
               ray_t &ray,
               bool dbg)
   {
-    auto perLeaf = [dbg,bvh,&ray,
+    auto perLeaf = [dbg,&bvh,&ray,
                     enterBlas,
                     leaveBlas,
                     intersectPrim]
-      (const uint32_t *leaf, int count) {
-      for (int i=0;i<count;i++)
-        ray.tMax = min(ray.tMax,intersectPrim(leaf[i]));
+      (const uint32_t *primIDs, int offset, int count) {
+      if (dbg) printf("AT LEAF!, primIDs %p, count %i\n",bvh.primIDs,count);
+      for (int i=0;i<count;i++) { 
+        int primIdx = offset+i;
+        if (primIDs) primIdx = primIDs[primIdx];
+        ray.tMax = min(ray.tMax,intersectPrim(offset+i));
+          
+      // if (primIDs == nullptr) {
+      //   if (dbg) printf("leaf %p offset %i\n",bvh.primIDs,(int)offset);
+      //   for (int i=0;i<count;i++) 
+      //     ray.tMax = min(ray.tMax,intersectPrim(offset+i));
+      // } else {
+      //   for (int i=0;i<count;i++) 
+      //     ray.tMax = min(ray.tMax,intersectPrim(primIDs[offset+i]));
+      }
+      if (dbg) printf("LEAVING LEAF! t = %f\n",ray.tMax);
       return ray.tMax;
     };
     shrinkingRayQuery::twoLevel::forEachLeaf

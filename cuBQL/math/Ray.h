@@ -26,7 +26,7 @@ namespace cuBQL {
 
   using ray3f = ray_t<float>;
   using ray3d = ray_t<double>;
-  using Ray = ray_t<float>;
+  using Ray   = ray_t<float>;
 
   template<int /*! 0, 1, or 2 */axis, int /* +1 or -1 */sign>
   struct AxisAlignedRay {
@@ -44,9 +44,9 @@ namespace cuBQL {
   inline __cubql_both
   bool rayIntersectsBox(ray_t<T> ray, box_t<T,3> box);
   
-  // =============================================================================
+  // ========================================================================
   // *** IMPLEMENTATION ***
-  // =============================================================================
+  // ========================================================================
 
   template<typename T>
   inline __cubql_both ray_t<T>::ray_t(typename ray_t<T>::vec3 org,
