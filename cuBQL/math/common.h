@@ -9,6 +9,7 @@
 #include <math.h> // using cmath causes issues under Windows
 
 #include <stdio.h>
+#include <inttypes.h>
 #include <iostream>
 #include <stdexcept>
 #include <memory>
@@ -60,7 +61,7 @@
 
 # define CUBQL_INTERFACE /* nothing - currently not building any special 'cubql.dll' */
 
-#if defined(_MSC_VER)
+#ifndef __PRETTY_FUNCTION__
 #  define __PRETTY_FUNCTION__ __FUNCTION__
 #endif
 
@@ -396,17 +397,10 @@ namespace cuBQL {
   { printf("%f",f); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, double f)
   { printf("%lf",f); return o; }
-#ifdef _WIN32
   inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
-  { printf("%llu",(unsigned long long)i); return o; }
+  { printf("%" PRIu64, i); return o; }
   inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
-  { printf("%lli",(long long)i); return o; }
-#else
-  inline __cubql_both dbgout operator<<(dbgout o, uint64_t i)
-  { printf("%lu",i); return o; }
-  inline __cubql_both dbgout operator<<(dbgout o, int64_t i)
-  { printf("%li",i); return o; }
-#endif
+  { printf("%" PRId64, i); return o; }
   template <typename T>
   inline __cubql_both dbgout operator<<(dbgout o, T *ptr)
   { printf("%p",ptr); return o; }
