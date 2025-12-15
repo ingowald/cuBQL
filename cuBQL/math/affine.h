@@ -30,7 +30,7 @@ namespace cuBQL {
         p(ZeroTy())
     {}
 
-    inline __cubql_both AffineSpaceT(const AffineSpaceT &other) = default;
+    inline AffineSpaceT(const AffineSpaceT &other) = default;
     
     inline __cubql_both AffineSpaceT(const L &other)
     {
