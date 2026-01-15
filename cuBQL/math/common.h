@@ -25,6 +25,7 @@
 # include <sys/time.h>
 #endif
 #if defined(__HIPCC__)
+#  include <hip/hip_runtime.h>
 #  include <hip/driver_types.h>
 #  include <hip/hip_runtime.h>
 #elif defined(__CUDACC__)

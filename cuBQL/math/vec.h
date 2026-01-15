@@ -310,6 +310,16 @@ namespace cuBQL {
   vec_t<T,D> operator+(vec_t<T,D> v)
   { return v; }
 
+  template<typename T, int D>
+  inline __cubql_both
+  vec_t<T,D> &operator-=(vec_t<T,D> &self, vec_t<T,D> v)
+  { return self = self-v; return self; }
+  
+  template<typename T, int D>
+  inline __cubql_both
+  vec_t<T,D> &operator+=(vec_t<T,D> &self, vec_t<T,D> v)
+  { return self = self+v; return self; }
+  
 
 #if CUBQL_SUPPORT_CUDA_VECTOR_TYPES
 # define CUBQL_OPERATOR_CUDA_T(long_op, op)      \
