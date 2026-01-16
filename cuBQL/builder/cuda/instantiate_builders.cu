@@ -7,6 +7,7 @@
 #include "cuBQL/builder/cuda.h"
 #include "cuBQL/builder/cuda/radix.h"
 #include "cuBQL/builder/cuda/rebinMortonBuilder.h"
+#include "cuBQL/builder/cuda/wide_gpu_builder.h"
 
 
 #define CUBQL_INSTANTIATE_BINARY_BVH(T,D)                               \
@@ -63,9 +64,11 @@
                              BuildConfig        buildConfig,    \
                              cudaStream_t       s,              \
                              GpuMemoryResource &mem_resource);  \
-    template void free(WideBVH<T,D,N>  &bvh,                    \
-                       cudaStream_t s,                          \
-                       GpuMemoryResource& mem_resource);        \
+    namespace cuda {                                            \
+      template void free(WideBVH<T,D,N>  &bvh,                  \
+                         cudaStream_t s,                        \
+                         GpuMemoryResource& mem_resource);      \
+    }                                                           \
   }
 
 
@@ -77,12 +80,14 @@ CUBQL_INSTANTIATE_BINARY_BVH(CUBQL_INSTANTIATE_T,CUBQL_INSTANTIATE_D)
 CUBQL_INSTANTIATE_WIDE_BVH(CUBQL_INSTANTIATE_T,CUBQL_INSTANTIATE_D,4)
 CUBQL_INSTANTIATE_WIDE_BVH(CUBQL_INSTANTIATE_T,CUBQL_INSTANTIATE_D,8)
 CUBQL_INSTANTIATE_WIDE_BVH(CUBQL_INSTANTIATE_T,CUBQL_INSTANTIATE_D,12)
+CUBQL_INSTANTIATE_WIDE_BVH(CUBQL_INSTANTIATE_T,CUBQL_INSTANTIATE_D,16)
 #else
 // default instantiation(s) for float3 only
 CUBQL_INSTANTIATE_BINARY_BVH(float,3)
 CUBQL_INSTANTIATE_WIDE_BVH(float,3,4)
 CUBQL_INSTANTIATE_WIDE_BVH(float,3,8)
 CUBQL_INSTANTIATE_WIDE_BVH(float,3,12)
+CUBQL_INSTANTIATE_WIDE_BVH(float,3,16)
 #endif
   
  
