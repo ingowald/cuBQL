@@ -206,6 +206,9 @@ namespace cuBQL {
     inline __cubql_both vec_t(const vec_t_data<T,4> &o)
     { this->x = (o.x); this->y = (o.y); this->z = (o.z); this->w = (o.w); }
 
+    inline __cubql_both vec_t(const vec_t_data<T,3> &o, T w)
+    { this->x = (o.x); this->y = (o.y); this->z = (o.z); this->w = w; }
+
     template<typename OT>
     explicit __cubql_both vec_t(const vec_t_data<OT,4> &o)
     { this->x = T(o.x); this->y = T(o.y); this->z = T(o.z); this->w = T(o.w); }

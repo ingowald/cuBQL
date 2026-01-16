@@ -63,7 +63,12 @@
 # define CUBQL_INTERFACE /* nothing - currently not building any special 'cubql.dll' */
 
 #ifndef __PRETTY_FUNCTION__
+# if defined(__func__)
+#  define __PRETTY_FUNCTION__ __func__
+// #  define __PRETTY_FUNCTION__ __FILE__##"::"##__LINE__##": "##__FUNCTION__
+# else
 #  define __PRETTY_FUNCTION__ __FUNCTION__
+# endif
 #endif
 
 
