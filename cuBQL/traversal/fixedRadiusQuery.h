@@ -118,7 +118,7 @@ namespace cuBQL {
                      bool dbg)
     {
       const int stackSize = 64;
-      bvh3f::node_t::Admin traversalStack[stackSize], *stackPtr = traversalStack;
+      typename bvh_t<T, D>::node_t::Admin traversalStack[stackSize], *stackPtr = traversalStack;
       typename bvh_t<T,D>::node_t::Admin node = bvh.nodes[0].admin;
       // ------------------------------------------------------------------
       // traverse until there's nothing left to traverse:
