@@ -14,8 +14,8 @@
   namespace cuBQL {                                                     \
   namespace radixBuilder_impl {                                         \
     template                                                            \
-    void build(BinaryBVH<T,D>        &bvh,                              \
-               const typename BuildState<T,D>::box_t       *boxes,      \
+    void build(BinaryBVH<T,D>    &bvh,                                  \
+               const box_t<T,D>  *boxes,                                \
                uint32_t           numPrims,                             \
                BuildConfig        buildConfig,                          \
                cudaStream_t       s,                                    \
