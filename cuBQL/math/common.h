@@ -25,6 +25,7 @@
 # include <sys/time.h>
 #endif
 #if defined(__HIPCC__)
+#  include <hip/hip_runtime.h>
 #  include <hip/driver_types.h>
 #  include <hip/hip_runtime.h>
 #elif defined(__CUDACC__)
@@ -62,7 +63,12 @@
 # define CUBQL_INTERFACE /* nothing - currently not building any special 'cubql.dll' */
 
 #ifndef __PRETTY_FUNCTION__
+# if defined(__func__)
+#  define __PRETTY_FUNCTION__ __func__
+// #  define __PRETTY_FUNCTION__ __FILE__##"::"##__LINE__##": "##__FUNCTION__
+# else
 #  define __PRETTY_FUNCTION__ __FUNCTION__
+# endif
 #endif
 
 

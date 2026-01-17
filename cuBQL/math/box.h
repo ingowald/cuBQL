@@ -134,9 +134,16 @@ namespace cuBQL {
     inline __cubql_both vec_t center() const
     { return (this->lower+this->upper)/scalar_t(2); }
 
+    /*! return a vector that give the size of the box in x,y,...etc */
     inline __cubql_both vec_t size() const
     { return this->upper - this->lower; }
-    
+
+    /*! return a vector that give the size of the box in x,y,...etc
+        (also known as the 'span' of a box, due to the it being the
+        vector that spans the box from lower to upper) */
+    inline __cubql_both vec_t span() const
+    { return this->upper - this->lower; }
+
     /*! returns TWICE the center (which happens to be the SUM of lower
       an dupper). Note this 'conceptually' the same as 'center()',
       but without the nasty division that may lead to rounding
