@@ -164,7 +164,7 @@ namespace cuBQL {
   typename AffineSpaceT<L>::vector_t xfmPoint(const AffineSpaceT<L>& m,
                                              const typename AffineSpaceT<L>::vector_t &p)
   {
-    using vector_t = AffineSpaceT<L>::vector_t;
+    using vector_t = typename AffineSpaceT<L>::vector_t;
     return madd(vector_t(p.x),m.l.vx,
                 madd(vector_t(p.y),m.l.vy,
                      madd(vector_t(p.z),m.l.vz,

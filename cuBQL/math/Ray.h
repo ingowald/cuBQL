@@ -16,8 +16,8 @@ namespace cuBQL {
   struct ray_t {
     using vec3 = vec_t<T,3>;
     
-    __cubql_both ray_t() = default;
-    __cubql_both ray_t(const ray_t &) = default;
+    inline ray_t() = default;
+    inline ray_t(const ray_t &) = default;
     __cubql_both ray_t(vec3 org, vec3 dir, T tMin, T tMax);
     __cubql_both ray_t(vec3 org, vec3 dir);
     vec3 origin;
