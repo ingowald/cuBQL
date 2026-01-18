@@ -62,9 +62,10 @@ namespace cuBQL {
               cudaStream_t       s,
               GpuMemoryResource &memResource)
     {
+      CUBQL_CUDA_CALL(StreamSynchronize(s));  // Sync BEFORE freeing
       gpuBuilder_impl::_FREE(bvh.primIDs,s,memResource);
       gpuBuilder_impl::_FREE(bvh.nodes,s,memResource);
-      CUBQL_CUDA_CALL(StreamSynchronize(s));
+      CUBQL_CUDA_CALL(StreamSynchronize(s));  // And AFTER
       bvh.primIDs = 0;
     }
   }
