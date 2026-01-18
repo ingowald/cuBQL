@@ -140,6 +140,7 @@ namespace cuBQL {
   // easy short-hand - though cubql also supports other types of bvhs,
   // scalars, etc, this will likely be the most commonly used one.
   using bvh3f = BinaryBVH<float,3>;
+  using bvh3d = BinaryBVH<double,3>;
 
 #ifdef __CUDACC__
   typedef BinaryBVH<float,2> bvh_float2;
