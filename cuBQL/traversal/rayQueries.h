@@ -550,8 +550,8 @@ namespace cuBQL {
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
         if (dbg) {
-          dout << " node L " << n0.bounds << "\n";
-          dout << " node R " << n1.bounds << "\n";
+          // dout << " node L " << n0.bounds << "\n";
+          // dout << " node R " << n1.bounds << "\n";
           printf("children L hit %i dist %f R hit %i dist %f\n",
                  int(o0),node_t0,
                  int(o1),node_t1);
