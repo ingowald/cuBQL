@@ -164,6 +164,7 @@ namespace cuBQL {
   typename AffineSpaceT<L>::vector_t xfmPoint(const AffineSpaceT<L>& m,
                                              const typename AffineSpaceT<L>::vector_t &p)
   {
+    using vector_t = AffineSpaceT<L>::vector_t;
     return madd(vector_t(p.x),m.l.vx,
                 madd(vector_t(p.y),m.l.vy,
                      madd(vector_t(p.z),m.l.vz,
@@ -185,11 +186,11 @@ namespace cuBQL {
   /// Comparison Operators
   ////////////////////////////////////////////////////////////////////////////////
 
-  template<typename L> inline
+  template<typename L> inline __cubql_both
   bool operator ==( const AffineSpaceT<L>& a, const AffineSpaceT<L>& b )
   { return a.l == b.l && a.p == b.p; }
   
-  template<typename L> inline
+  template<typename L> inline __cubql_both
   bool operator !=( const AffineSpaceT<L>& a, const AffineSpaceT<L>& b )
   { return a.l != b.l || a.p != b.p; }
 

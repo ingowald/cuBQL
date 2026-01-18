@@ -170,6 +170,21 @@ namespace cuBQL {
 
   template<typename T>
   inline __cubql_both
+  void rayBoxTest(T &tin, T &tout,
+                  ray_t<T> ray, box_t<T,3> box)
+  {
+    using vec3 = vec_t<T,3>;
+    vec3 inv = rcp(ray.direction);
+    vec3 lo = (box.lower - ray.origin) * inv;
+    vec3 hi = (box.upper - ray.origin) * inv;
+    vec3 nr = min(lo,hi);
+    vec3 fr = max(lo,hi);
+    tin  = max(ray.tMin,reduce_max(nr));
+    tout = min(ray.tMax,reduce_min(fr));
+  }
+
+  template<typename T>
+  inline __cubql_both
   bool rayIntersectsBox(float &ret_t0,
                         ray_t<T> ray, vec_t<T,3> rcp_dir, box_t<T,3> box)
   {
@@ -462,7 +477,7 @@ namespace cuBQL {
 
     node_t   *tlasSavedNodePtr = 0;
     uint32_t *tlasSavedPrimIDs = 0;
-    vec3f saved_dir, saved_org;
+    vec_t<T,3> saved_dir, saved_org;
     
     if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
     if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
@@ -512,6 +527,9 @@ namespace cuBQL {
           enterBlas(transformed_ray,blas,instID);
           ray.origin = transformed_ray.origin;
           ray.direction = transformed_ray.direction;
+          if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
+          if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
+          if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
           rcp_dir = rcp(ray.direction);
           bvh.nodes     = blas.nodes;
           bvh.primIDs   = blas.primIDs;
@@ -531,10 +549,13 @@ namespace cuBQL {
         bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
-        if (dbg)
+        if (dbg) {
+          dout << " node L " << n0.bounds << "\n";
+          dout << " node R " << n1.bounds << "\n";
           printf("children L hit %i dist %f R hit %i dist %f\n",
                  int(o0),node_t0,
                  int(o1),node_t1);
+        }
         if (o0) {
           if (o1) {
             if (stackPtr-traversalStack >= STACK_DEPTH) {
@@ -620,15 +641,7 @@ namespace cuBQL {
       for (int i=0;i<count;i++) { 
         int primIdx = offset+i;
         if (primIDs) primIdx = primIDs[primIdx];
-        ray.tMax = min(ray.tMax,intersectPrim(offset+i));
-          
-      // if (primIDs == nullptr) {
-      //   if (dbg) printf("leaf %p offset %i\n",bvh.primIDs,(int)offset);
-      //   for (int i=0;i<count;i++) 
-      //     ray.tMax = min(ray.tMax,intersectPrim(offset+i));
-      // } else {
-      //   for (int i=0;i<count;i++) 
-      //     ray.tMax = min(ray.tMax,intersectPrim(primIDs[offset+i]));
+        ray.tMax = min(ray.tMax,intersectPrim(primIdx));
       }
       if (dbg) printf("LEAVING LEAF! t = %f\n",ray.tMax);
       return ray.tMax;

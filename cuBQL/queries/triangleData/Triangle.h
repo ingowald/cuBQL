@@ -34,7 +34,12 @@ namespace cuBQL {
   {
     using vec3 = vec_t<T,3>;
     using box3 = box_t<T,3>;
-    
+
+    inline __cubql_both triangle_t() = default;
+    inline __cubql_both triangle_t(vec3 a, vec3 b, vec3 c)
+      : a(a), b(b), c(c)
+    {}
+    inline __cubql_both triangle_t(const triangle_t &) = default;
     inline __cubql_both box3 bounds() const;
     inline __cubql_both vec3 sample(float u, float v) const;
     inline __cubql_both vec3 normal() const;

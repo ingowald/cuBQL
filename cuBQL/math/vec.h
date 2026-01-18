@@ -169,7 +169,9 @@ namespace cuBQL {
     using vec_t_data<T,3>::y;
     using vec_t_data<T,3>::z;
 
-    inline __cubql_both vec_t() {}
+    inline vec_t() = default;
+    inline vec_t(const vec_t &) = default;
+    // inline __cubql_both vec_t() {}
     inline __cubql_both vec_t(const T &t) { x = y = z = t; }
     inline __cubql_both vec_t(T x, T y, T z)
     { this->x = x; this->y = y; this->z = z; }

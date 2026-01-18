@@ -132,8 +132,13 @@ namespace cuBQL {
   /// Comparison Operators
   ////////////////////////////////////////////////////////////////////////////////
 
-  template<typename T> inline __cubql_both bool operator ==( const LinearSpace2<T>& a, const LinearSpace2<T>& b ) { return a.vx == b.vx && a.vy == b.vy; }
-  template<typename T> inline __cubql_both bool operator !=( const LinearSpace2<T>& a, const LinearSpace2<T>& b ) { return a.vx != b.vx || a.vy != b.vy; }
+  template<typename T> inline __cubql_both
+  bool operator ==( const LinearSpace2<T>& a, const LinearSpace2<T>& b )
+  { return a.vx == b.vx && a.vy == b.vy; }
+  
+  template<typename T> inline __cubql_both
+  bool operator !=( const LinearSpace2<T>& a, const LinearSpace2<T>& b )
+  { return a.vx != b.vx || a.vy != b.vy; }
 
   ////////////////////////////////////////////////////////////////////////////////
   /// Output Operators
@@ -307,8 +312,13 @@ namespace cuBQL {
   /// Comparison Operators
   ////////////////////////////////////////////////////////////////////////////////
 
-  template<typename T> inline bool operator ==( const LinearSpace3<T>& a, const LinearSpace3<T>& b ) { return a.vx == b.vx && a.vy == b.vy && a.vz == b.vz; }
-  template<typename T> inline bool operator !=( const LinearSpace3<T>& a, const LinearSpace3<T>& b ) { return a.vx != b.vx || a.vy != b.vy || a.vz != b.vz; }
+  template<typename T> inline __cubql_both
+  bool operator ==( const LinearSpace3<T>& a, const LinearSpace3<T>& b )
+  { return a.vx == b.vx && a.vy == b.vy && a.vz == b.vz; }
+  
+  template<typename T> inline __cubql_both
+  bool operator !=( const LinearSpace3<T>& a, const LinearSpace3<T>& b )
+  { return a.vx != b.vx || a.vy != b.vy || a.vz != b.vz; }
 
   ////////////////////////////////////////////////////////////////////////////////
   /// Output Operators
