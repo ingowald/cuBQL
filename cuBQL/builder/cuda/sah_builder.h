@@ -28,8 +28,14 @@ namespace cuBQL {
         struct {
           AtomicBox<box_t> centBounds;
           uint32_t offset;
+#if 1
+          int8_t dim;
+          int8_t bin;
+          int32_t atomicSideDeciderBits;
+#else
           int8_t   dim;
           int8_t   bin;
+#endif
         } openNode;
         struct {
           uint32_t offset;
@@ -54,7 +60,8 @@ namespace cuBQL {
     inline __device__
     void evaluateSAH(int &splitDim,
                      int &splitBin,
-                     const SAHBins<box_t> &sah)
+                     const SAHBins<box_t> &sah,
+                     int maxAllowedLeafSize)
     {
       float bestCost = CUBQL_INF;
       
@@ -69,7 +76,7 @@ namespace cuBQL {
           rAreas[b] = surfaceArea(box);
         }
         const float leafCost = rAreas[0] * rCount;
-        if (leafCost < bestCost) {
+        if (leafCost < bestCost && rCount <= maxAllowedLeafSize) {
           bestCost = leafCost;
           splitDim = -1;
         }
@@ -241,12 +248,17 @@ namespace cuBQL {
       int   splitDim = -1;
       int   splitBin;
       if (in.count > buildConfig.makeLeafThreshold) {
-        evaluateSAH(splitDim,splitBin,sah);
+        evaluateSAH(splitDim,splitBin,sah,buildConfig.maxAllowedLeafSize);
       }
-      if (splitDim < 0) {
+      bool makeLeaf
+        =  (splitDim < 0)
+        && (in.count <= buildConfig.maxAllowedLeafSize);
+      
+      if (makeLeaf) {
         nodeState   = DONE_NODE;
         auto &done  = nodes[nodeID].doneNode;
         done.count  = in.count;
+
         // set this to max-value, so the prims can later do atomicMin
         // with their position ion the leaf list; this value is
         // greater than any prim position.
@@ -295,22 +307,26 @@ namespace cuBQL {
 
       auto open = nodes[me.nodeID].openNode;
       const box_t<T,D> primBox = primBoxes[me.primID];
+      int side = -1;
+      if (open.dim == -1) {
+        // // use top bit to atomically 'sort' prims left vs right
+        // side = atomicAdd(&nodes[me.nodeID].openNode.atomicSideDeciderBits,1u<<31)>>31;
+        side = atomicAdd(&nodes[me.nodeID].openNode.atomicSideDeciderBits,1u)&1;
+      } else {
 
-      const int d = open.dim;
-      T lo = open.centBounds.get_lower(d);
-      T hi = open.centBounds.get_upper(d);
+        const int d = open.dim;
+        T lo = open.centBounds.get_lower(d);
+        T hi = open.centBounds.get_upper(d);
       
-      T prim_d = T(0.5)*(primBox.get_lower(d)+primBox.get_upper(d));
-      T rel
-        = (prim_d - lo)
-        / (hi - lo + 1e-20f);
-      int prim_bin = int(rel*(int)SAHBins<box_t<T,D>>::numBins);
-      prim_bin = max(0,min((int)SAHBins<box_t<T,D>>::numBins-1,prim_bin));
+        T prim_d = T(0.5)*(primBox.get_lower(d)+primBox.get_upper(d));
+        T rel
+          = (prim_d - lo)
+          / (hi - lo + 1e-20f);
+        int prim_bin = int(rel*(int)SAHBins<box_t<T,D>>::numBins);
+        prim_bin = max(0,min((int)SAHBins<box_t<T,D>>::numBins-1,prim_bin));
       
-      int side = (prim_bin >= open.bin);
-      // printf("updateprim %i node %i state %i dim %i bin %i -> prim bin %i -> side %i\n",
-      //        primID,me.nodeID,ns,open.dim,open.bin,
-      //        prim_bin,side);
+        side = (prim_bin >= open.bin);
+      }
       int newNodeID = open.offset+side;
       auto &myBranch = nodes[newNodeID].openBranch;
       atomicAdd(&myBranch.count,1);
