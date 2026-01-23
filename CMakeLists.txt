@@ -7,6 +7,9 @@ cmake_policy(SET CMP0048 NEW)
 set(CMAKE_BUILD_TYPE_INIT "Release")
 project(cuBQL VERSION 1.1.0 LANGUAGES C CXX)
 
+if (CUBQL_OMP)
+  set(CUBQL_DISABLE_CUDA ON)
+endif()
 if (CUBQL_DISABLE_CUDA)
   message("#cuBQL: CUDA _DISABLED_ by user request")
   set(CUBQL_HAVE_CUDA OFF)
@@ -135,4 +138,8 @@ add_subdirectory(cuBQL)
 
 if (NOT CUBQL_IS_SUBPROJECT)
   add_subdirectory(samples)
+endif()
+
+if (CUBQL_OMP)
+  add_subdirectory(testing)
 endif()
