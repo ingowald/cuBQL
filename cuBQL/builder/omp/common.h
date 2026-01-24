@@ -14,7 +14,7 @@ namespace cuBQL {
     struct Context {
       Context(int gpuID);
 
-      void *alloc(size_t Nelements);
+      void *alloc(size_t numBytes);
       
       template<typename T>
       void alloc(T *&d_data, size_t Nelements);
@@ -70,8 +70,11 @@ namespace cuBQL {
       printf("#cuBQL:omp:Context(gpu=%i/%i,host=%i)\n",
              gpuID,omp_get_num_devices(),hostID);
     }
+
+    void *Context::alloc(size_t numBytes)
+    { return omp_target_alloc(numBytes,gpuID); }
     
-    template<typename T>
+    template<typename T> inline
     void Context::alloc_and_upload(T *&d_data,
                                    const T *h_data,
                                    size_t N)
@@ -84,7 +87,7 @@ namespace cuBQL {
                         0,0,gpuID,hostID);
     }
       
-    template<typename T>
+    template<typename T> inline
     void Context::alloc_and_upload(T *&d_data,
                                    const std::vector<T> &h_vector)
     { alloc_and_upload(d_data,h_vector.data(),h_vector.size()); }
@@ -97,6 +100,50 @@ namespace cuBQL {
                         0,0,hostID,gpuID);
       return out;
     }
+
+    inline void Context::free(void *ptr)
+    { omp_target_free(ptr,gpuID); }
+
+    template<typename T> inline
+    void Context::alloc(T *&d_data, size_t N)
+    {
+      d_data = (T*)omp_target_alloc(N*sizeof(T),gpuID);
+    }
+      
+    // template<typename T> inline
+    // void Context::alloc_and_upload(T *&d_data,
+    //                                const T *h_data,
+    //                                size_t N)
+    // {
+    //   alloc(d_data,N);
+    //   upload(d_data,h_data,N);
+    // }
+      
+    // template<typename T> inline
+    // void Context::alloc_and_upload(T *&d_data,
+    //                                const std::vector<T> &h_vector)
+    // {
+    //   alloc(d_data,h_vector.size());
+    //   upload(d_data,h_vector);
+    // }
+
+    // template<typename T> inline
+    // std::vector<T> Context::download_vector(const T *d_data,
+    //                                         size_t N)
+    // {
+    //   std::vector<T> vec(N);
+    //   omp_target_memcpy(vec.data(),d_data,N*sizeof(T),
+    //                     0,0,hostID,gpuID);
+    //   return vec;
+    // }
+
+    template<typename T>
+    inline void Context::download(T &h_value, T *d_value)
+    {
+      omp_target_memcpy(&h_value,d_value,sizeof(T),
+                        0,0,hostID,gpuID);
+    }
+
     
   } // ::cuBQL::omp
 } // ::cuBQL
