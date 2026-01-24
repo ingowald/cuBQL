@@ -4,10 +4,21 @@
 #pragma once
 
 #include "cuBQL/builder/omp/refit.h"
+#include "cuBQL/builder/omp/sort.h"
 
 namespace cuBQL {
   namespace omp {
 
+    template<typename box_t>
+    struct AtomicBox : public box_t {
+    };
+
+    template<typename box_t>
+    void atomic_grow(AtomicBox<box_t> &ab, typename box_t::vec_t P);
+    
+    template<typename box_t>
+    void atomic_grow(AtomicBox<box_t> &ab, box_t B);
+    
     struct PrimState {
       union {
         /* careful with this order - this is intentionally chosen such
@@ -22,6 +33,8 @@ namespace cuBQL {
       };
     };
 
+    typedef enum : int8_t { OPEN_BRANCH, OPEN_NODE, DONE_NODE } NodeState;
+    
     template<typename T, int D>
     struct CUBQL_ALIGN(16) TempNode {
       using box_t = cuBQL::box_t<T,D>;
@@ -46,12 +59,11 @@ namespace cuBQL {
     };
     
     template<typename T, int D>
-    __global__
-    void initState(BuildState      *buildState,
-                   NodeState       *nodeStates,
+    void initState(uint32_t      *pNumNodes,
+                   NodeState     *nodeStates,
                    TempNode<T,D> *nodes)
     {
-      buildState->numNodes = 2;
+      *pNumNodes = 2;
       
       nodeStates[0]             = OPEN_BRANCH;
       nodes[0].openBranch.count = 0;
@@ -63,12 +75,13 @@ namespace cuBQL {
     }
 
     template<typename T, int D>
-    __global__ void initPrims(TempNode<T,D> *nodes,
-                              PrimState       *primState,
-                              const box_t<T,D>     *primBoxes,
-                              uint32_t         numPrims)
+    void initPrims(Kernel kernel,
+                   TempNode<T,D>    *nodes,
+                   PrimState        *primState,
+                   const box_t<T,D> *primBoxes,
+                   uint32_t          numPrims)
     {
-      const int primID = threadIdx.x+blockIdx.x*blockDim.x;
+      const int primID = kernel.workIdx();
       if (primID >= numPrims) return;
       
       auto &me = primState[primID];
@@ -88,105 +101,14 @@ namespace cuBQL {
     }
 
     template<typename T, int D>
-    __global__
-    void selectSplits(BuildState    *buildState,
+    void selectSplits(Kernel kernel,
+                      uint32_t      *pNumNodes,
                       NodeState     *nodeStates,
                       TempNode<T,D> *nodes,
                       uint32_t       numNodes,
                       BuildConfig    buildConfig)
     {
-#if 1
-      __shared__ int l_newNodeOfs;
-      if (threadIdx.x == 0)
-        l_newNodeOfs = 0;
-      __syncthreads();
-
-      int *t_nodeOffsetToWrite = 0;
-      int  t_localOffsetToAdd = 0;
-
-      while (true) {
-        const int nodeID = threadIdx.x+blockIdx.x*blockDim.x;
-        if (nodeID >= numNodes)
-          break;
-        
-        NodeState &nodeState = nodeStates[nodeID];
-        if (nodeState == DONE_NODE)
-          // this node was already closed before
-          break;
-        
-        if (nodeState == OPEN_NODE) {
-          // this node was open in the last pass, can close it.
-          nodeState   = DONE_NODE;
-          int offset  = nodes[nodeID].openNode.offset;
-          auto &done  = nodes[nodeID].doneNode;
-          done.count  = 0;
-          done.offset = offset;
-          break;
-        }
-        
-        auto in = nodes[nodeID].openBranch;
-        if (in.count <= buildConfig.makeLeafThreshold) {
-          auto &done  = nodes[nodeID].doneNode;
-          done.count  = in.count;
-          // set this to max-value, so the prims can later do atomicMin
-          // with their position ion the leaf list; this value is
-          // greater than any prim position.
-          done.offset = (uint32_t)-1;
-          nodeState   = DONE_NODE;
-        } else {
-          float widestWidth = 0.f;
-          int   widestDim   = -1;
-          float widestLo, widestHi, widestCtr;
-#pragma unroll
-          for (int d=0;d<D;d++) {
-            float lo = in.centBounds.get_lower(d);
-            float hi = in.centBounds.get_upper(d);
-            float width = hi - lo;
-            if (width <= widestWidth)
-              continue;
-            float ctr = 0.5f*(hi+lo);
-            
-            widestWidth = width;
-            widestDim   = d;
-            widestLo = lo;
-            widestHi = hi;
-            widestCtr = ctr;
-          }
-          
-          auto &open = nodes[nodeID].openNode;
-          if (widestDim >= 0) {
-            open.pos = widestCtr;
-          }
-          open.dim
-            = (widestDim < 0 || widestCtr == widestLo || widestCtr == widestHi)
-            ? -1
-            : widestDim;
-          
-          // this will be epensive - could make this faster by block-reducing
-          // open.offset = atomicAdd(&buildState->numNodes,2);
-          t_nodeOffsetToWrite = (int*)&open.offset;
-          t_localOffsetToAdd = atomicAdd(&l_newNodeOfs,2);
-          nodeState = OPEN_NODE;
-        }
-        break;
-      }
-      __syncthreads();
-      if (threadIdx.x == 0 && l_newNodeOfs > 0)
-        l_newNodeOfs = atomicAdd(&buildState->numNodes,l_newNodeOfs);
-      __syncthreads();
-      if (t_nodeOffsetToWrite) {
-        int openOffset = *t_nodeOffsetToWrite = l_newNodeOfs + t_localOffsetToAdd;
-#pragma unroll
-          for (int side=0;side<2;side++) {
-            const int childID = openOffset+side;
-            auto &child = nodes[childID].openBranch;
-            child.centBounds.set_empty();
-            child.count         = 0;
-            nodeStates[childID] = OPEN_BRANCH;
-          }
-      }
-#else
-      const int nodeID = threadIdx.x+blockIdx.x*blockDim.x;
+      const int nodeID = kernel.workIdx();//threadIdx.x+blockIdx.x*blockDim.x;
       if (nodeID >= numNodes) return;
 
       NodeState &nodeState = nodeStates[nodeID];
@@ -242,8 +164,7 @@ namespace cuBQL {
           ? -1
           : widestDim;
         
-        // this will be epensive - could make this faster by block-reducing
-        open.offset = atomicAdd(&buildState->numNodes,2);
+        open.offset = atomicAdd(pNumNodes,2);
 #pragma unroll
         for (int side=0;side<2;side++) {
           const int childID = open.offset+side;
@@ -254,18 +175,17 @@ namespace cuBQL {
         }
         nodeState = OPEN_NODE;
       }
-#endif
     }
 
     template<typename T, int D>
-    __global__
-    void updatePrims(NodeState       *nodeStates,
+    void updatePrims(Kernel kernel,
+                     NodeState       *nodeStates,
                      TempNode<T,D> *nodes,
                      PrimState       *primStates,
                      const box_t<T,D>     *primBoxes,
                      int numPrims)
     {
-      const int primID = threadIdx.x+blockIdx.x*blockDim.x;
+      const int primID = kernel.workIdx();
       if (primID >= numPrims) return;
 
       const auto me = primStates[primID];
@@ -302,13 +222,13 @@ namespace cuBQL {
        the nodes[] array, the node.offset value to point to the first
        of this nodes' items in that bvh.primIDs[] list. */
     template<typename T, int D>
-    __global__
-    void writePrimsAndLeafOffsets(TempNode<T,D> *nodes,
+    void writePrimsAndLeafOffsets(Kernel kernel,
+                                  TempNode<T,D> *nodes,
                                   uint32_t        *bvhItemList,
                                   PrimState       *primStates,
                                   int              numPrims)
     {
-      const int offset = threadIdx.x+blockIdx.x*blockDim.x;
+      const int offset = kernel.workIdx();//threadIdx.x+blockIdx.x*blockDim.x;
       if (offset >= numPrims) return;
 
       auto &ps = primStates[offset];
@@ -324,12 +244,12 @@ namespace cuBQL {
     /* writes main phase's temp nodes into final bvh.nodes[]
        layout. actual bounds of that will NOT yet bewritten */
     template<typename T, int D>
-    __global__
-    void writeNodes(typename BinaryBVH<T,D>::Node *finalNodes,
+    void writeNodes(Kernel kernel,
+                    typename BinaryBVH<T,D>::Node *finalNodes,
                     TempNode<T,D>  *tempNodes,
                     int        numNodes)
     {
-      const int nodeID = threadIdx.x+blockIdx.x*blockDim.x;
+      const int nodeID = kernel.workIdx();
       if (nodeID >= numNodes) return;
 
       finalNodes[nodeID].admin.offset = tempNodes[nodeID].doneNode.offset;
@@ -338,12 +258,12 @@ namespace cuBQL {
 
     
     template<typename T, int D>
-    void build(BinaryBVH<T,D>    &bvh,
-               const box_t<T,D>  *boxes,
-               int                numPrims,
-               BuildConfig        buildConfig,
-               cudaStream_t       s,
-               GpuMemoryResource &memResource)
+    void spatialMedian(BinaryBVH<T,D> &bvh,
+                       /*! DEVICE array of boxes */
+                       const box_t<T,D> *boxes,
+                       uint32_t          numPrims,
+                       BuildConfig       buildConfig,
+                       Context          *ctx)
     {
       assert(sizeof(PrimState) == sizeof(uint64_t));
       
@@ -353,91 +273,94 @@ namespace cuBQL {
       TempNode<T,D> *tempNodes = 0;
       NodeState     *nodeStates = 0;
       PrimState     *primStates = 0;
-      BuildState    *buildState = 0;
-      ctx->malloc(tempNodes,2*numPrims);
-      ctx->malloc(nodeStates,2*numPrims);
-      ctx->malloc(primStates,numPrims);
-      ctx->malloc(buildState,1);
-      initState<<<1,1,0,s>>>(buildState,
-                             nodeStates,
-                             tempNodes);
-      initPrims<<<divRoundUp(numPrims,1024),1024,0,s>>>
-        (tempNodes,
-         primStates,boxes,numPrims);
+      uint32_t      *d_numNodes = 0;
+      ctx->alloc(tempNodes,2*numPrims);
+      ctx->alloc(nodeStates,2*numPrims);
+      ctx->alloc(primStates,numPrims);
+      ctx->alloc(d_numNodes,1);
+#pragma omp target device(ctx->gpuID)
+#pragma omp teams distribute parallel for
+      for (int tid=0;tid<1;tid++)
+        initState(d_numNodes,
+                  nodeStates,
+                  tempNodes);
+#pragma omp target device(ctx->gpuID)
+#pragma omp teams distribute parallel for
+      for (int tid=0;tid<numPrims;tid++)
+        initPrims(Kernel{tid},tempNodes,
+                  primStates,boxes,numPrims);
 
       int numDone = 0;
-      int numNodes;
+      uint32_t numNodes;
 
       // ------------------------------------------------------------------      
-      cudaEvent_t stateDownloadedEvent;
-      CUBQL_CUDA_CALL(EventCreate(&stateDownloadedEvent));
-      
-      
       while (true) {
-        CUBQL_CUDA_CALL(MemcpyAsync(&numNodes,&buildState->numNodes,
-                                    sizeof(numNodes),cudaMemcpyDeviceToHost,s));
-        CUBQL_CUDA_CALL(EventRecord(stateDownloadedEvent,s));
-        CUBQL_CUDA_CALL(EventSynchronize(stateDownloadedEvent));
+        ctx->download(numNodes,d_numNodes);
         if (numNodes == numDone)
           break;
-        selectSplits<<<divRoundUp(numNodes,1024),1024,0,s>>>
-          (buildState,
-           nodeStates,tempNodes,numNodes,
-           buildConfig);
+#pragma omp target device(ctx->gpuID)
+#pragma omp teams distribute parallel for
+        for (int tid=0;tid<numNodes;tid++)
+          selectSplits(Kernel{tid},
+                       d_numNodes,
+                       nodeStates,tempNodes,numNodes,
+                       buildConfig);
         numDone = numNodes;
 
-        updatePrims<<<divRoundUp(numPrims,1024),1024,0,s>>>
-          (nodeStates,tempNodes,
-           primStates,boxes,numPrims);
+#pragma omp target device(ctx->gpuID)
+#pragma omp teams distribute parallel for
+        for (int tid=0;tid<numPrims;tid++)
+          updatePrims(Kernel{tid},
+                      nodeStates,tempNodes,
+                      primStates,boxes,numPrims);
       }
-      CUBQL_CUDA_CALL(EventDestroy(stateDownloadedEvent));
       // ==================================================================
       // sort {item,nodeID} list
       // ==================================================================
       
-      // set up sorting of prims
-      uint8_t   *d_temp_storage     = NULL;
-      size_t     temp_storage_bytes = 0;
-      PrimState *sortedPrimStates   = 0;
-      ctx->malloc(sortedPrimStates,numPrims);
-      auto rc =
-        cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
-                                     (uint64_t*)primStates,
-                                     (uint64_t*)sortedPrimStates,
-                                     numPrims,32,64,s);
-      ctx->malloc(d_temp_storage,temp_storage_bytes);
-      rc =
-        cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
-                                       (uint64_t*)primStates,
-                                       (uint64_t*)sortedPrimStates,
-                                       numPrims,32,64,s);
-      rc = rc;
-      ctx->free(d_temp_storage);
+      ::omp::omp_target_sort((uint64_t*)primStates,numPrims,ctx->gpuID);
+      
       // ==================================================================
       // allocate and write BVH item list, and write offsets of leaf nodes
       // ==================================================================
 
       bvh.numPrims = numPrims;
-      ctx->malloc(bvh.primIDs,numPrims);
-      writePrimsAndLeafOffsets<<<divRoundUp(numPrims,1024),1024,0,s>>>
-        (tempNodes,bvh.primIDs,sortedPrimStates,numPrims);
-
+      ctx->alloc(bvh.primIDs,numPrims);
+#pragma omp target device(ctx->gpuID)
+#pragma omp teams distribute parallel for
+      for (int tid=0;tid<numPrims;tid++)
+        writePrimsAndLeafOffsets(Kernel{tid},
+                                 tempNodes,
+                                 bvh.primIDs,primStates,numPrims);
+      
       // ==================================================================
       // allocate and write final nodes
       // ==================================================================
       bvh.numNodes = numNodes;
-      ctx->malloc(bvh.nodes,numNodes);
-      writeNodes<<<divRoundUp(numNodes,1024),1024,0,s>>>
-        (bvh.nodes,tempNodes,numNodes);
-      ctx->free(sortedPrimStates);
+      ctx->alloc(bvh.nodes,numNodes);
+#pragma omp target device(ctx->gpuID)
+#pragma omp teams distribute parallel for
+      for (int tid=0;tid<numNodes;tid++)
+        writeNodes(Kernel{tid},bvh.nodes,tempNodes,numNodes);
       ctx->free(tempNodes);
       ctx->free(nodeStates);
       ctx->free(primStates);
-      ctx->free(buildState);
+      ctx->free(d_numNodes);
 
-      refit(bvh);
+      cuBQL::omp::refit(bvh,boxes,ctx);
     }
     
+  }
+  
+  template<typename T, int D>
+  void build_omp_target(BinaryBVH<T,D> &bvh,
+                        const box_t<T,D> *d_boxes,
+                        uint32_t          numBoxes,
+                        BuildConfig       buildConfig,
+                        int               gpuID)
+  {
+    omp::Context ctx(gpuID);
+    omp::spatialMedian(bvh,d_boxes,numBoxes,buildConfig,&ctx);
   }
 }
 

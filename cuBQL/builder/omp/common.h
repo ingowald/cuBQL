@@ -6,6 +6,7 @@
 
 #include "cuBQL/bvh.h"
 #include <omp.h>
+#include <atomic>
 
 namespace cuBQL {
   namespace omp {
@@ -13,6 +14,11 @@ namespace cuBQL {
     struct Context {
       Context(int gpuID);
 
+      void *alloc(size_t Nelements);
+      
+      template<typename T>
+      void alloc(T *&d_data, size_t Nelements);
+      
       template<typename T>
       void alloc_and_upload(T *&d_data, const T *h_data, size_t Nelements);
       
@@ -21,15 +27,36 @@ namespace cuBQL {
 
       template<typename T>
       std::vector<T> download_vector(const T *d_data, size_t N);
+
+      template<typename T>
+      void download(T &h_value, T *d_value);
+
+      void free(void *);
       
       int gpuID;
       int hostID;
     };
+    
     struct Kernel {
       inline int workIdx() const { return _workIdx; }
       int _workIdx;
     };
 
+    inline uint32_t atomicAdd(uint32_t *p_value, uint32_t inc)
+    {
+      return ((std::atomic<int> *)p_value)->fetch_add(inc); 
+    }
+    
+    inline void atomicMin(uint32_t *p_value, uint32_t other)
+    {
+      uint32_t current = *(volatile uint32_t *)p_value;
+      while (current > other) {
+        bool wasChanged
+          = ((std::atomic<int>*)p_value)
+          ->compare_exchange_weak((int&)current,(int&)other);
+        if (wasChanged) break;
+      }
+    }
 
 
     // ##################################################################

@@ -8,16 +8,6 @@
 namespace cuBQL {
   namespace omp {
     
-    struct Context {
-      Context(int gpuID);
-      int gpuID;
-      int hostID;
-    };
-    struct Kernel {
-      inline int workIdx() const { return _workIdx; }
-      int _workIdx;
-    };
-
     template<typename T, int D> inline
     void refit_init(Kernel kernel,
                     const typename BinaryBVH<T,D>::Node *nodes,
@@ -86,13 +76,13 @@ namespace cuBQL {
     {
       int numNodes = bvh.numNodes;
       uint32_t *refitData
-        = (uint32_t*)ctx->malloc(numNodes*sizeof(int));
+        = (uint32_t*)ctx->alloc(numNodes*sizeof(int));
       
-# pragma omp target device(context->gpuID)
+# pragma omp target device(ctx->gpuID)
 # pragma omp teams distribute parallel for
       for (int i=0;i<numNodes;i++)
         refit_init<T,D>(Kernel{i},bvh.nodes,refitData,bvh.numNodes);
-# pragma omp target device(context->gpuID)
+# pragma omp target device(ctx->gpuID)
 # pragma omp teams distribute parallel for
       for (int i=0;i<numNodes;i++)
         refit_run(Kernel{i},bvh,refitData,boxes);
