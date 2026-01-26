@@ -12,8 +12,10 @@
 
 namespace omp {
   namespace bitonic {
-      
+
+#pragma omp declare target
     template<typename key_t>
+    inline
     void g_orderSegmentPairs(uint32_t tid,
                              int logSegLen,
                              key_t *const d_values,
@@ -36,6 +38,7 @@ namespace omp {
         d_values[l] = rv;
       }
     }
+#pragma omp end declare target
       
     template<typename key_t, typename value_t>
     void g_orderSegmentPairs(uint32_t tid,
@@ -73,11 +76,18 @@ namespace omp {
                            int numValues,
                            uint32_t deviceID)
     {
-#pragma omp target device(deviceID)
-#pragma omp teams distribute parallel for
+#if 0
+#pragma omp target device(deviceID) teams is_device_ptr(d_values) num_teams(128)
+      {
+        int bs = 
+      }
+#else
+#pragma omp target device(deviceID) is_device_ptr(d_values) nowait
+#pragma omp teams distribute parallel for 
       for (int i=0;i<numValues;i++)
         g_orderSegmentPairs(i,logSegLen,
                             d_values,numValues);
+#endif
     }
       
     template<typename key_t, typename value_t>
@@ -87,8 +97,9 @@ namespace omp {
                            int numValues,
                            uint32_t deviceID)
     {
-#pragma omp target device(deviceID)
-#pragma omp teams distribute parallel for
+// #pragma omp target nowait device(deviceID) is_device_ptr(d_keys) is_device_ptr(d_values)
+// #pragma omp target teams distribute parallel for
+#pragma omp target nowait device(deviceID) is_device_ptr(d_keys) is_device_ptr(d_values) 
       for (int i=0;i<numValues;i++)
         g_orderSegmentPairs(i,logSegLen,
                             d_keys,d_values,numValues);
@@ -139,7 +150,7 @@ namespace omp {
               uint32_t deviceID)
     {
       uint32_t logSegLen = 0;
-      while (1<<logSegLen < numValues)
+      while ((1<<logSegLen) < numValues)
         logSegLen++;
       sortSegments(logSegLen,d_keys,d_values,numValues,deviceID);
     }

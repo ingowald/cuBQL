@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA
+// CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -9,145 +10,6 @@
 namespace cuBQL {
   namespace omp {
 
-    template<typename box_t>
-    struct AtomicBox : public box_t {
-    };
-
-    template<typename T>
-    void atomic_min(T *ptr, T v);
-    template<typename T>
-    void atomic_max(T *ptr, T v);
-    
-    /*! iw - note: this implementation of atomic min/max via atomic
-        compare-exchange (CAS); which is cetainly not optimal on any
-        sort of modern GPU - but it works in any C++-21 compliant
-        compiler, so it's what we do for now */
-    void atomic_min(float *ptr, float value)
-    {
-      float current = *(volatile float *)ptr;
-      while (current > value) {
-        bool wasChanged
-          = ((std::atomic<int>*)ptr)
-          ->compare_exchange_weak((int&)current,(int&)value);
-        if (wasChanged) break;
-      }
-    }
-    
-    /*! iw - note: this implementation of atomic min/max via atomic
-        compare-exchange (CAS); which is cetainly not optimal on any
-        sort of modern GPU - but it works in any C++-21 compliant
-        compiler, so it's what we do for now */
-    void atomic_max(float *ptr, float value)
-    {
-      float current = *(volatile float *)ptr;
-      while (current > value) {
-        bool wasChanged
-          = ((std::atomic<int>*)ptr)
-          ->compare_exchange_weak((int&)current,(int&)value);
-        if (wasChanged) break;
-      }
-    }
-    
-    /*! iw - note: this implementation of atomic min/max via atomic
-        compare-exchange (CAS); which is cetainly not optimal on any
-        sort of modern GPU - but it works in any C++-21 compliant
-        compiler, so it's what we do for now */
-    void atomic_min(double *ptr, double value)
-    {
-      double current = *(volatile double *)ptr;
-      while (current > value) {
-        bool wasChanged
-          = ((std::atomic<long long int>*)ptr)
-          ->compare_exchange_weak((long long int&)current,
-                                  (long long int&)value);
-        if (wasChanged) break;
-      }
-    }
-    
-    /*! iw - note: this implementation of atomic min/max via atomic
-        compare-exchange (CAS); which is cetainly not optimal on any
-        sort of modern GPU - but it works in any C++-21 compliant
-        compiler, so it's what we do for now */
-    void atomic_max(double *ptr, double value)
-    {
-      double current = *(volatile double *)ptr;
-      while (current > value) {
-        bool wasChanged
-          = ((std::atomic<long long int>*)ptr)
-          ->compare_exchange_weak((long long int&)current,
-                                  (long long int&)value);
-        if (wasChanged) break;
-      }
-    }
-    
-    template<typename T, int D>
-    void v_atomic_min(vec_t<T,D> *ptr, vec_t<T,D> v);
-    template<typename T, int D>
-    void v_atomic_max(vec_t<T,D> *ptr, vec_t<T,D> v);
-    
-
-    template<typename T>
-    void v_atomic_min(vec_t<T,2> *ptr, vec_t<T,2> v)
-    {
-      atomic_min(&ptr->x,v.x); 
-      atomic_min(&ptr->y,v.y);
-    }
-    
-    template<typename T>
-    void v_atomic_min(vec_t<T,3> *ptr, vec_t<T,3> v)
-    {
-      atomic_min(&ptr->x,v.x); 
-      atomic_min(&ptr->y,v.y);
-      atomic_min(&ptr->z,v.z);
-    }
-    
-    template<typename T>
-    void v_atomic_min(vec_t<T,4> *ptr, vec_t<T,4> v)
-    {
-      atomic_min(&ptr->x,v.x); 
-      atomic_min(&ptr->y,v.y);
-      atomic_min(&ptr->z,v.z);
-      atomic_min(&ptr->w,v.w);
-    }
-
-    template<typename T>
-    void v_atomic_max(vec_t<T,2> *ptr, vec_t<T,2> v)
-    {
-      atomic_max(&ptr->x,v.x); 
-      atomic_max(&ptr->y,v.y);
-    }
-    
-    template<typename T>
-    void v_atomic_max(vec_t<T,3> *ptr, vec_t<T,3> v)
-    {
-      atomic_max(&ptr->x,v.x); 
-      atomic_max(&ptr->y,v.y);
-      atomic_max(&ptr->z,v.z);
-    }
-    
-    template<typename T>
-    void v_atomic_max(vec_t<T,4> *ptr, vec_t<T,4> v)
-    {
-      atomic_max(&ptr->x,v.x); 
-      atomic_max(&ptr->y,v.y);
-      atomic_max(&ptr->z,v.z);
-      atomic_max(&ptr->w,v.w);
-    }
-    
-    template<typename box_t>
-    void atomic_grow(AtomicBox<box_t> &ab, typename box_t::vec_t P)
-    {
-      v_atomic_min(&ab.lower,P);
-      v_atomic_max(&ab.upper,P);
-    }
-    
-    template<typename box_t>
-    void atomic_grow(AtomicBox<box_t> &ab, box_t B)
-    {
-      v_atomic_min(&ab.lower,B.lower);
-      v_atomic_max(&ab.upper,B.upper);
-    }
-    
     struct PrimState {
       union {
         /* careful with this order - this is intentionally chosen such
@@ -162,7 +24,8 @@ namespace cuBQL {
       };
     };
 
-    typedef enum : int8_t { OPEN_BRANCH, OPEN_NODE, DONE_NODE } NodeState;
+    enum { OPEN_BRANCH, OPEN_NODE, DONE_NODE };
+    typedef uint8_t NodeState;
     
     template<typename T, int D>
     struct CUBQL_ALIGN(16) TempNode {
@@ -186,21 +49,36 @@ namespace cuBQL {
         } doneNode;
       };
     };
-    
+
     template<typename T, int D>
-    void initState(uint32_t      *pNumNodes,
+    void initState(Kernel kernel,
+                   uint32_t      *pNumNodes,
                    NodeState     *nodeStates,
                    TempNode<T,D> *nodes)
     {
+      int tid = kernel.workIdx();
+      if (tid > 0) return;
+      printf("initstate\n");
       *pNumNodes = 2;
       
+      printf("initstate1\n");
       nodeStates[0]             = OPEN_BRANCH;
+      printf("initstate2\n");
       nodes[0].openBranch.count = 0;
+      printf("initstate3\n");
+      printf("initstate3 %p\n",&nodes[0].openBranch.centBounds);
+
+      ((int*)&nodes[0].openBranch.centBounds)[0] = 0;
+      printf("bla\n");
       nodes[0].openBranch.centBounds.set_empty();
 
+      printf("initstate4\n");
       nodeStates[1]            = DONE_NODE;
+      printf("initstate5\n");
       nodes[1].doneNode.offset = 0;
+      printf("initstate6\n");
       nodes[1].doneNode.count  = 0;
+      printf("initstate7\n");
     }
 
     template<typename T, int D>
@@ -212,7 +90,7 @@ namespace cuBQL {
     {
       const int primID = kernel.workIdx();
       if (primID >= numPrims) return;
-      
+
       auto &me = primState[primID];
       me.primID = primID;
                                                     
@@ -222,7 +100,20 @@ namespace cuBQL {
         me.done   = false;
         // this could be made faster by block-reducing ...
         atomicAdd(&nodes[0].openBranch.count,1);
-        atomic_grow(nodes[0].openBranch.centBounds,box.center());//centerOf(box));
+        auto ctr = box.center();
+        atomic_grow(nodes[0].openBranch.centBounds,ctr);//centerOf(box));
+        // printf("p %i ctr %f %f %f grownn box %i : (%f %f %f)(%f %f %f)\n",
+        //        primID,
+        //        ctr.x,
+        //        ctr.y,
+        //        ctr.z,
+        //        0,
+        //        nodes[0].openBranch.centBounds.lower.x,
+        //        nodes[0].openBranch.centBounds.lower.y,
+        //        nodes[0].openBranch.centBounds.lower.z,
+        //        nodes[0].openBranch.centBounds.upper.x,
+        //        nodes[0].openBranch.centBounds.upper.y,
+        //        nodes[0].openBranch.centBounds.upper.z);
       } else {
         me.nodeID = (uint32_t)-1;
         me.done   = true;
@@ -254,7 +145,7 @@ namespace cuBQL {
         done.offset = offset;
         return;
       }
-      
+
       auto in = nodes[nodeID].openBranch;
       if (in.count <= buildConfig.makeLeafThreshold) {
         auto &done  = nodes[nodeID].doneNode;
@@ -298,6 +189,7 @@ namespace cuBQL {
         for (int side=0;side<2;side++) {
           const int childID = open.offset+side;
           auto &child = nodes[childID].openBranch;
+
           child.centBounds.set_empty();
           child.count         = 0;
           nodeStates[childID] = OPEN_BRANCH;
@@ -361,11 +253,15 @@ namespace cuBQL {
       if (offset >= numPrims) return;
 
       auto &ps = primStates[offset];
+      // printf("ps %i -> %i : %i done %i\n",
+      //        (int)offset,(int)ps.primID,(int)ps.nodeID,(int)ps.done);
       bvhItemList[offset] = ps.primID;
-      
+       
       if ((int)ps.nodeID < 0)
         /* invalid prim, just skip here */
         return;
+      if (ps.nodeID >= 853350)
+        { printf("OVERFLOW\n"); return; }
       auto &node = nodes[ps.nodeID];
       atomicMin(&node.doneNode.offset,offset);
     }
@@ -395,6 +291,12 @@ namespace cuBQL {
                        Context          *ctx)
     {
       assert(sizeof(PrimState) == sizeof(uint64_t));
+      if (buildConfig.makeLeafThreshold < 1)
+        buildConfig.makeLeafThreshold = 1;
+
+      PING;
+      PRINT(buildConfig.makeLeafThreshold);
+      PRINT(buildConfig.maxAllowedLeafSize);
       
       // ==================================================================
       // do build on temp nodes
@@ -407,18 +309,28 @@ namespace cuBQL {
       ctx->alloc(nodeStates,2*numPrims);
       ctx->alloc(primStates,numPrims);
       ctx->alloc(d_numNodes,1);
-#pragma omp target device(ctx->gpuID)
+      PING;
+      PRINT(numPrims);
+      PRINT(d_numNodes);
+      PRINT((int*)nodeStates);
+      PRINT(tempNodes);
+#pragma omp target device(ctx->gpuID) is_device_ptr(d_numNodes) is_device_ptr(nodeStates) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<1;tid++)
-        initState(d_numNodes,
+        initState(Kernel{tid},
+                  d_numNodes,
                   nodeStates,
                   tempNodes);
-#pragma omp target device(ctx->gpuID)
+      PING;
+      PRINT(numPrims);
+      PING; fflush(0);
+#pragma omp target device(ctx->gpuID) is_device_ptr(tempNodes) is_device_ptr(primStates) is_device_ptr(boxes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numPrims;tid++)
         initPrims(Kernel{tid},tempNodes,
                   primStates,boxes,numPrims);
 
+      PING; fflush(0);
       int numDone = 0;
       uint32_t numNodes;
 
@@ -427,7 +339,7 @@ namespace cuBQL {
         ctx->download(numNodes,d_numNodes);
         if (numNodes == numDone)
           break;
-#pragma omp target device(ctx->gpuID)
+#pragma omp target device(ctx->gpuID) is_device_ptr(d_numNodes) is_device_ptr(nodeStates) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
         for (int tid=0;tid<numNodes;tid++)
           selectSplits(Kernel{tid},
@@ -446,37 +358,61 @@ namespace cuBQL {
       // ==================================================================
       // sort {item,nodeID} list
       // ==================================================================
-      
+
+      PING;
+#if 1
+      std::cout << "host sort ..." << std::endl;
+      PRINT(numPrims);
+      std::vector<uint64_t> h_primStates
+        = ctx->download_vector((uint64_t*)primStates,numPrims);
+      PING;
+      // ctx->download(h_primStates,primStates,numNodes*sizeof(uint64_t));
+      std::sort(h_primStates.begin(),h_primStates.end());
+      ctx->upload((uint64_t*)primStates,h_primStates.data(),numPrims);
+      PING;
+#else
+      std::cout << "openmp sort ..." << std::endl;
       ::omp::omp_target_sort((uint64_t*)primStates,numPrims,ctx->gpuID);
-      
+#endif 
+      PING;
       // ==================================================================
       // allocate and write BVH item list, and write offsets of leaf nodes
       // ==================================================================
 
+      PRINT(numNodes);
       bvh.numPrims = numPrims;
+      bvh.primIDs = 0;
+      PING;
       ctx->alloc(bvh.primIDs,numPrims);
-#pragma omp target device(ctx->gpuID)
+      PING;
+      auto primIDs = bvh.primIDs;
+#pragma omp target device(ctx->gpuID) is_device_ptr(primStates) is_device_ptr(tempNodes) is_device_ptr(primIDs)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numPrims;tid++)
         writePrimsAndLeafOffsets(Kernel{tid},
                                  tempNodes,
-                                 bvh.primIDs,primStates,numPrims);
+                                 primIDs,primStates,numPrims);
       
+      PING;
       // ==================================================================
       // allocate and write final nodes
       // ==================================================================
       bvh.numNodes = numNodes;
       ctx->alloc(bvh.nodes,numNodes);
-#pragma omp target device(ctx->gpuID)
+      PING; PRINT(numNodes);
+      auto bvhNodes = bvh.nodes;
+#pragma omp target device(ctx->gpuID) is_device_ptr(bvhNodes) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numNodes;tid++)
-        writeNodes(Kernel{tid},bvh.nodes,tempNodes,numNodes);
+        writeNodes(Kernel{tid},bvhNodes,tempNodes,numNodes);
       ctx->free(tempNodes);
       ctx->free(nodeStates);
       ctx->free(primStates);
       ctx->free(d_numNodes);
 
+      PING; 
       cuBQL::omp::refit(bvh,boxes,ctx);
+      PING; 
     }
     
   }

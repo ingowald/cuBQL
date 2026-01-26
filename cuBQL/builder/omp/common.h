@@ -23,6 +23,9 @@ namespace cuBQL {
       void alloc_and_upload(T *&d_data, const T *h_data, size_t Nelements);
       
       template<typename T>
+      void upload(T *d_data, const T *h_data, size_t Nelements);
+      
+      template<typename T>
       void alloc_and_upload(T *&d_data, const std::vector<T> &h_vector);
 
       template<typename T>
@@ -42,7 +45,7 @@ namespace cuBQL {
       int _workIdx;
     };
 
-    inline uint32_t atomicAdd(uint32_t *p_value, uint32_t inc)
+    inline uint32_t atomicAdd(volatile uint32_t *p_value, uint32_t inc)
     {
       return ((std::atomic<int> *)p_value)->fetch_add(inc); 
     }
@@ -75,6 +78,16 @@ namespace cuBQL {
     { return omp_target_alloc(numBytes,gpuID); }
     
     template<typename T> inline
+    void Context::upload(T *d_data,
+                         const T *h_data,
+                         size_t N)
+    {
+      assert(d_data);
+      omp_target_memcpy(d_data,h_data,N*sizeof(T),
+                        0,0,gpuID,hostID);
+    }
+      
+    template<typename T> inline
     void Context::alloc_and_upload(T *&d_data,
                                    const T *h_data,
                                    size_t N)
@@ -82,9 +95,7 @@ namespace cuBQL {
       printf("target_alloc N %li gpu %i\n",N,gpuID);
       d_data = (T *)omp_target_alloc(N*sizeof(T),gpuID);
       printf("ptr %p\n",d_data);
-      assert(d_data);
-      omp_target_memcpy(d_data,h_data,N*sizeof(T),
-                        0,0,gpuID,hostID);
+      upload(d_data,h_data,N);
     }
       
     template<typename T> inline
@@ -95,7 +106,12 @@ namespace cuBQL {
     template<typename T>
     std::vector<T> Context::download_vector(const T *d_data, size_t N)
     {
+      PRINT(N);
+      PRINT(d_data);
+      
       std::vector<T> out(N);
+      PRINT(out.data());
+      PRINT(sizeof(T));
       omp_target_memcpy(out.data(),d_data,N*sizeof(T),
                         0,0,hostID,gpuID);
       return out;
