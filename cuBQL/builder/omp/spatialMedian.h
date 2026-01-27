@@ -10,6 +10,8 @@
 namespace cuBQL {
   namespace omp {
 
+#define NO_SORT 1
+    
     struct PrimState {
       union {
         /* careful with this order - this is intentionally chosen such
@@ -266,6 +268,41 @@ namespace cuBQL {
       atomicMin(&node.doneNode.offset,offset);
     }
 
+    template<typename T, int D>
+    void writeLeafOffsets(Kernel kernel,
+                          TempNode<T,D> *nodes,
+                          uint32_t      *pNextFreeOffset,
+                          int            numNodes)
+    {
+      const int nodeID = kernel.workIdx();
+      if (nodeID >= numNodes) return;
+      
+      auto &node = nodes[nodeID].doneNode;
+      if (node.count > 0)
+        node.offset = atomicAdd(pNextFreeOffset,node.count)+node.count-1;
+    }
+
+    template<typename T, int D>
+    void writePrims(Kernel kernel,
+                    uint32_t      *bvh_primIDs,
+                    TempNode<T,D> *nodes,
+                    PrimState     *primStates,
+                    int            numPrims)
+    {
+      const int primID = kernel.workIdx();//threadIdx.x+blockIdx.x*blockDim.x;
+      if (primID >= numPrims) return;
+
+      auto &ps = primStates[primID];
+      if ((int)ps.nodeID < 0)
+        /* invalid prim, just skip here */
+        return;
+      auto &node = nodes[ps.nodeID].doneNode;
+      int myPos = atomicAdd(&node.offset,(uint32_t)-1);
+      if (myPos < 0 || myPos >= numPrims)
+        printf("OVERFLOW pri\n");
+      bvh_primIDs[myPos] = ps.primID;
+    }
+    
     /* writes main phase's temp nodes into final bvh.nodes[]
        layout. actual bounds of that will NOT yet bewritten */
     template<typename T, int D>
@@ -348,18 +385,48 @@ namespace cuBQL {
                        buildConfig);
         numDone = numNodes;
 
-#pragma omp target device(ctx->gpuID)
+#pragma omp target device(ctx->gpuID) is_device_ptr(d_numNodes) is_device_ptr(nodeStates) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
         for (int tid=0;tid<numPrims;tid++)
           updatePrims(Kernel{tid},
                       nodeStates,tempNodes,
                       primStates,boxes,numPrims);
       }
+      
+      PING;
+      bvh.numPrims = numPrims;
+      bvh.primIDs = 0;
+      PING;
+      ctx->alloc(bvh.primIDs,numPrims);
+      PING;
+      auto bvh_primIDs = bvh.primIDs;
+      
+#if NO_SORT
+      uint32_t zero = 0u;
+      // set first uint there to zero; leaf writing code will
+      // atomically inc that value to determine leaf offset values.
+      ctx->upload(bvh_primIDs,&zero,1);
+#pragma omp target device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(tempNodes)
+#pragma omp teams distribute parallel for
+      for (int tid=0;tid<numNodes;tid++)
+        writeLeafOffsets(Kernel{tid},
+                         tempNodes,
+                         bvh_primIDs,
+                         numNodes);
+      
+#pragma omp target device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(tempNodes)
+#pragma omp teams distribute parallel for
+      for (int tid=0;tid<numPrims;tid++)
+        writePrims(Kernel{tid},
+                   bvh_primIDs,
+                   tempNodes,
+                   primStates,
+                   numPrims);
+#else
       // ==================================================================
       // sort {item,nodeID} list
       // ==================================================================
 
-      PING;
 #if 1
       std::cout << "host sort ..." << std::endl;
       PRINT(numPrims);
@@ -373,38 +440,32 @@ namespace cuBQL {
 #else
       std::cout << "openmp sort ..." << std::endl;
       ::omp::omp_target_sort((uint64_t*)primStates,numPrims,ctx->gpuID);
-#endif 
       PING;
       // ==================================================================
       // allocate and write BVH item list, and write offsets of leaf nodes
       // ==================================================================
-
+#endif
       PRINT(numNodes);
-      bvh.numPrims = numPrims;
-      bvh.primIDs = 0;
-      PING;
-      ctx->alloc(bvh.primIDs,numPrims);
-      PING;
-      auto primIDs = bvh.primIDs;
 #pragma omp target device(ctx->gpuID) is_device_ptr(primStates) is_device_ptr(tempNodes) is_device_ptr(primIDs)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numPrims;tid++)
         writePrimsAndLeafOffsets(Kernel{tid},
                                  tempNodes,
-                                 primIDs,primStates,numPrims);
+                                 bvh_primIDs,primStates,numPrims);
       
       PING;
+#endif 
       // ==================================================================
       // allocate and write final nodes
       // ==================================================================
       bvh.numNodes = numNodes;
       ctx->alloc(bvh.nodes,numNodes);
       PING; PRINT(numNodes);
-      auto bvhNodes = bvh.nodes;
-#pragma omp target device(ctx->gpuID) is_device_ptr(bvhNodes) is_device_ptr(tempNodes)
+      auto bvh_nodes = bvh.nodes;
+#pragma omp target device(ctx->gpuID) is_device_ptr(bvh_nodes) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numNodes;tid++)
-        writeNodes(Kernel{tid},bvhNodes,tempNodes,numNodes);
+        writeNodes(Kernel{tid},bvh_nodes,tempNodes,numNodes);
       ctx->free(tempNodes);
       ctx->free(nodeStates);
       ctx->free(primStates);

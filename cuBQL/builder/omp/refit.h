@@ -23,8 +23,6 @@ namespace cuBQL {
       node.bounds = box_t<T,D>();
       if (node.admin.count) return;
 
-      if (node.admin.offset+1 >= numNodes)
-        printf("refit_init_overflow\n");
       refitData[node.admin.offset+0] = nodeID << 1;
       refitData[node.admin.offset+1] = nodeID << 1;
     }
@@ -43,9 +41,6 @@ namespace cuBQL {
 
       typename BinaryBVH<T,D>::Node *node = bvh_nodes+nodeID;
 
-      if (nodeID < 0 || nodeID >= 601202) {
-        printf("BLA\n"); return;
-      }
       if (node->admin.count == 0)
         // this is a inner node - exit
         return;
@@ -58,27 +53,13 @@ namespace cuBQL {
       }
 
       int parentID = (refitData[nodeID] >> 1);
-      int its = 0;
       while (true) {
-        if (parentID == 1) {
-          printf("1 is parent!!!!\n");
-                 return;
-        }
-        
         atomic_grow(*(AtomicBox<box_t<T,D>> *)&node->bounds,bounds);
         // node->bounds = bounds;
           
         if (node == bvh_nodes)
           break;
 
-        int it = its++;
-        // if (it >= 4) return;
-
-        // if (it == 3) { printf("parentID %i\n",parentID); return; }
-        
-        if (parentID < 0 || parentID >= 601202) {
-          printf("BLA\n"); return;
-        }
         uint32_t refitBits = atomicAdd(&refitData[parentID],1u);
         if ((refitBits & 1) == 0)
           // we're the first one - let other one do it
@@ -89,9 +70,6 @@ namespace cuBQL {
         parentID = (refitBits >> 1);
 
         int ofs = node->admin.offset;
-        if (ofs < 0 || ofs+1 >= 601202) {
-          printf("BLAB\n"); return;
-        }
         
         typename BinaryBVH<T,D>::Node l = bvh_nodes[ofs+0];
         typename BinaryBVH<T,D>::Node r = bvh_nodes[ofs+1];
@@ -105,7 +83,6 @@ namespace cuBQL {
                const box_t<T,D>  *boxes,
                Context *ctx)
     {
-      PING;
       assert(bvh.nodes);
       assert(bvh.primIDs);
       int numNodes = bvh.numNodes;
@@ -137,6 +114,7 @@ namespace cuBQL {
             refit_run_x(Kernel{i},//bvh,
                         bvh_primIDs,bvh_nodes,refitData,boxes,numNodes);
         }
+        nb = nb;
       }
 #else
 #pragma omp target device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(bvh_nodes) is_device_ptr(refitData) is_device_ptr(boxes) 
