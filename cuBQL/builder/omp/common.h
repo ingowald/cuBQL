@@ -56,10 +56,9 @@ namespace cuBQL {
     
     inline void atomicMin(uint32_t *ptr, uint32_t value)
     {
+      uint32_t &x = *ptr;
 #pragma omp atomic compare 
-      {
-        if (*ptr > value) *ptr = value;
-      }
+        if (x > value) { x = value; }
       // uint32_t t;
 // #pragma omp atomic capture
 //       { t = *ptr; *ptr = std::min(t,value); }

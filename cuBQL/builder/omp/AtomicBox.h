@@ -39,10 +39,9 @@ namespace cuBQL {
         if (wasChanged) break;
       }
 #else
+      float &x = *ptr;
 #pragma omp atomic compare 
-      {
-        if (*ptr > value) *ptr = value;
-      }
+      if (x > value) { x = value; }
 //       float t;
 // #pragma omp atomic capture
 //       { t = *ptr; *ptr = std::min(t,value); }
@@ -64,11 +63,10 @@ namespace cuBQL {
         if (wasChanged) break;
       }
 #else
+      float &x = *ptr;
 #pragma omp atomic compare 
-      {
-        if (*ptr < value) *ptr = value;
-      }
-//       float t;
+      if (x < value) { x = value; }
+        //       float t;
 // #pragma omp atomic capture
 //       { t = *ptr; *ptr = std::max(t,value); }
 #endif
