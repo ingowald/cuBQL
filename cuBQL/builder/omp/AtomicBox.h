@@ -90,6 +90,10 @@ namespace cuBQL {
         if (wasChanged) break;
       }
 #endif
+#pragma omp atomic compare 
+      {
+        if (*ptr > value) *ptr = value;
+      }
     }
     
     /*! iw - note: this implementation of atomic min/max via atomic
@@ -108,6 +112,10 @@ namespace cuBQL {
         if (wasChanged) break;
       }
 #endif
+#pragma omp atomic compare 
+      {
+        if (*ptr < value) *ptr = value;
+      }
     }
     
     template<typename T, int D>
