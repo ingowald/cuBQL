@@ -43,9 +43,9 @@ namespace cuBQL {
 
       typename BinaryBVH<T,D>::Node *node = bvh_nodes+nodeID;
 
-      if (nodeID < 0 || nodeID >= 601202) {
-        printf("BLA\n"); return;
-      }
+      // if (nodeID < 0 || nodeID >= 601202) {
+      //   printf("BLA\n"); return;
+      // }
       if (node->admin.count == 0)
         // this is a inner node - exit
         return;
@@ -76,9 +76,9 @@ namespace cuBQL {
 
         // if (it == 3) { printf("parentID %i\n",parentID); return; }
         
-        if (parentID < 0 || parentID >= 601202) {
-          printf("BLA\n"); return;
-        }
+        // if (parentID < 0 || parentID >= 601202) {
+        //   printf("BLA\n"); return;
+        // }
         uint32_t refitBits = atomicAdd(&refitData[parentID],1u);
         if ((refitBits & 1) == 0)
           // we're the first one - let other one do it
@@ -89,9 +89,9 @@ namespace cuBQL {
         parentID = (refitBits >> 1);
 
         int ofs = node->admin.offset;
-        if (ofs < 0 || ofs+1 >= 601202) {
-          printf("BLAB\n"); return;
-        }
+        // if (ofs < 0 || ofs+1 >= 601202) {
+        //   printf("BLAB\n"); return;
+        // }
         
         typename BinaryBVH<T,D>::Node l = bvh_nodes[ofs+0];
         typename BinaryBVH<T,D>::Node r = bvh_nodes[ofs+1];

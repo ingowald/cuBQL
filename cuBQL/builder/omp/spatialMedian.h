@@ -147,6 +147,14 @@ namespace cuBQL {
       }
 
       auto in = nodes[nodeID].openBranch;
+      // printf("node split %i : %f %f %f : %f %f %f\n",
+      //        nodeID,
+      //        in.centBounds.lower.x,
+      //        in.centBounds.lower.y,
+      //        in.centBounds.lower.z,
+      //        in.centBounds.upper.x,
+      //        in.centBounds.upper.y,
+      //        in.centBounds.upper.z);
       if (in.count <= buildConfig.makeLeafThreshold) {
         auto &done  = nodes[nodeID].doneNode;
         done.count  = in.count;
@@ -185,6 +193,7 @@ namespace cuBQL {
           : widestDim;
         
         open.offset = atomicAdd(pNumNodes,2);
+        // printf("offset %i\n",open.offset);
 #pragma unroll
         for (int side=0;side<2;side++) {
           const int childID = open.offset+side;
@@ -260,8 +269,6 @@ namespace cuBQL {
       if ((int)ps.nodeID < 0)
         /* invalid prim, just skip here */
         return;
-      if (ps.nodeID >= 853350)
-        { printf("OVERFLOW\n"); return; }
       auto &node = nodes[ps.nodeID];
       atomicMin(&node.doneNode.offset,offset);
     }
@@ -337,6 +344,7 @@ namespace cuBQL {
       // ------------------------------------------------------------------      
       while (true) {
         ctx->download(numNodes,d_numNodes);
+        PING; PRINT(numNodes);
         if (numNodes == numDone)
           break;
 #pragma omp target device(ctx->gpuID) is_device_ptr(d_numNodes) is_device_ptr(nodeStates) is_device_ptr(tempNodes)
@@ -347,6 +355,7 @@ namespace cuBQL {
                        nodeStates,tempNodes,numNodes,
                        buildConfig);
         numDone = numNodes;
+        PRINT(numDone);
 
 #pragma omp target device(ctx->gpuID)
 #pragma omp teams distribute parallel for

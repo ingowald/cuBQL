@@ -6,6 +6,7 @@
 
 #include "cuBQL/builder/omp/common.h"
 
+
 namespace cuBQL {
   namespace omp {
 
@@ -29,6 +30,7 @@ namespace cuBQL {
         compiler, so it's what we do for now */
     inline void atomic_min(float *ptr, float value)
     {
+#if 0
       float current = *(volatile float *)ptr;
       while (current > value) {
         bool wasChanged
@@ -36,6 +38,15 @@ namespace cuBQL {
           ->compare_exchange_weak((int&)current,(int&)value);
         if (wasChanged) break;
       }
+#else
+#pragma omp atomic compare 
+      {
+        if (*ptr > value) *ptr = value;
+      }
+//       float t;
+// #pragma omp atomic capture
+//       { t = *ptr; *ptr = std::min(t,value); }
+#endif
     }
     
     /*! iw - note: this implementation of atomic min/max via atomic
@@ -44,6 +55,7 @@ namespace cuBQL {
         compiler, so it's what we do for now */
     inline void atomic_max(float *ptr, float value)
     {
+#if 0
       float current = *(volatile float *)ptr;
       while (current < value) {
         bool wasChanged
@@ -51,6 +63,15 @@ namespace cuBQL {
           ->compare_exchange_weak((int&)current,(int&)value);
         if (wasChanged) break;
       }
+#else
+#pragma omp atomic compare 
+      {
+        if (*ptr < value) *ptr = value;
+      }
+//       float t;
+// #pragma omp atomic capture
+//       { t = *ptr; *ptr = std::max(t,value); }
+#endif
     }
     
     /*! iw - note: this implementation of atomic min/max via atomic
@@ -59,6 +80,7 @@ namespace cuBQL {
         compiler, so it's what we do for now */
     inline void atomic_min(double *ptr, double value)
     {
+#if 0
       double current = *(volatile double *)ptr;
       while (current > value) {
         bool wasChanged
@@ -67,6 +89,7 @@ namespace cuBQL {
                                   (long long int&)value);
         if (wasChanged) break;
       }
+#endif
     }
     
     /*! iw - note: this implementation of atomic min/max via atomic
@@ -75,6 +98,7 @@ namespace cuBQL {
         compiler, so it's what we do for now */
     inline void atomic_max(double *ptr, double value)
     {
+#if 0
       double current = *(volatile double *)ptr;
       while (current < value) {
         bool wasChanged
@@ -83,6 +107,7 @@ namespace cuBQL {
                                   (long long int&)value);
         if (wasChanged) break;
       }
+#endif
     }
     
     template<typename T, int D>
