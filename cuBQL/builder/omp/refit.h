@@ -23,10 +23,12 @@ namespace cuBQL {
       node.bounds = box_t<T,D>();
       if (node.admin.count) return;
 
-      if (node.admin.offset+1 >= numNodes)
-        printf("refit_init_overflow\n");
-      refitData[node.admin.offset+0] = nodeID << 1;
-      refitData[node.admin.offset+1] = nodeID << 1;
+      // if (node.admin.offset < 0)
+      //   { printf("BAD OFFSET IN INIT(1)\n"); return; }
+      // if (node.admin.offset+1 >= numNodes)
+      //   { printf("BAD OFFSET IN INIT(2)\n"); return; }
+      refitData[node.admin.offset+0] = nodeID << 2;
+      refitData[node.admin.offset+1] = nodeID << 2;
     }
     
     template<typename T, int D> inline 
@@ -43,13 +45,12 @@ namespace cuBQL {
 
       typename BinaryBVH<T,D>::Node *node = bvh_nodes+nodeID;
 
-      // if (nodeID < 0 || nodeID >= 601202) {
-      //   printf("BLA\n"); return;
-      // }
+      // printf("begin nodeID %i\n",nodeID);
       if (node->admin.count == 0)
         // this is a inner node - exit
         return;
 
+      // printf(" -> leaf %i cnt %i ofs %i\n",nodeID,node->admin.count,node->admin.offset);
       box_t<T,D> bounds; bounds.set_empty();
       for (int i=0;i<node->admin.count;i++) {
         const box_t<T,D> primBox = boxes[bvh_primIDs[node->admin.offset+i]];
@@ -57,28 +58,16 @@ namespace cuBQL {
         bounds.upper = max(bounds.upper,primBox.upper);
       }
 
-      int parentID = (refitData[nodeID] >> 1);
-      int its = 0;
+      
+      int parentID = (refitData[nodeID] >> 2);
       while (true) {
-        if (parentID == 1) {
-          printf("1 is parent!!!!\n");
-                 return;
-        }
-        
+        // printf("parentID %i\n",parentID);
         atomic_grow(*(AtomicBox<box_t<T,D>> *)&node->bounds,bounds);
         // node->bounds = bounds;
           
         if (node == bvh_nodes)
           break;
 
-        int it = its++;
-        // if (it >= 4) return;
-
-        // if (it == 3) { printf("parentID %i\n",parentID); return; }
-        
-        // if (parentID < 0 || parentID >= 601202) {
-        //   printf("BLA\n"); return;
-        // }
         uint32_t refitBits = atomicAdd(&refitData[parentID],1u);
         if ((refitBits & 1) == 0)
           // we're the first one - let other one do it
@@ -86,12 +75,9 @@ namespace cuBQL {
 
         nodeID   = parentID;
         node     = &bvh_nodes[parentID];
-        parentID = (refitBits >> 1);
+        parentID = (refitBits >> 2);
 
         int ofs = node->admin.offset;
-        // if (ofs < 0 || ofs+1 >= 601202) {
-        //   printf("BLAB\n"); return;
-        // }
         
         typename BinaryBVH<T,D>::Node l = bvh_nodes[ofs+0];
         typename BinaryBVH<T,D>::Node r = bvh_nodes[ofs+1];
@@ -105,7 +91,6 @@ namespace cuBQL {
                const box_t<T,D>  *boxes,
                Context *ctx)
     {
-      PING;
       assert(bvh.nodes);
       assert(bvh.primIDs);
       int numNodes = bvh.numNodes;
@@ -123,10 +108,18 @@ namespace cuBQL {
           refit_init_x<T,D>(Kernel{i},bvh_nodes,refitData,numNodes);
       }
       PING;
+
+
+#pragma omp target device(ctx->gpuID) is_device_ptr(bvh_nodes)
+      for (int i=0;i<numNodes;i++)
+        if (bvh_nodes[i].admin.count != 0 && bvh_nodes[i].admin.offset < 0)
+          printf("REFIT INVALID OFFSET IN FINAL NODE %i\n",i);
+
+      
       PING;
       {
-#if 1
-        int nb = 128;
+#if 0
+        int nb = 1;//128;
 #pragma omp target  teams num_teams(nb) device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(bvh_nodes) is_device_ptr(refitData) is_device_ptr(boxes)
         {
           int team = omp_get_team_num();
@@ -137,6 +130,7 @@ namespace cuBQL {
             refit_run_x(Kernel{i},//bvh,
                         bvh_primIDs,bvh_nodes,refitData,boxes,numNodes);
         }
+        nb = nb;
       }
 #else
 #pragma omp target device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(bvh_nodes) is_device_ptr(refitData) is_device_ptr(boxes) 

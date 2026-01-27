@@ -515,10 +515,10 @@ namespace cuBQL {
       while (true) {
         CUBQL_CUDA_CALL(MemcpyAsync(&numNodes,&buildState->numNodes,
                                     sizeof(numNodes),cudaMemcpyDeviceToHost,s));
-        CUBQL_CUDA_CALL(EventRecord(stateDownloadedEvent,s));
-        CUBQL_CUDA_CALL(EventSynchronize(stateDownloadedEvent));
         if (numNodes == numDone)
           break;
+        CUBQL_CUDA_CALL(EventRecord(stateDownloadedEvent,s));
+        CUBQL_CUDA_CALL(EventSynchronize(stateDownloadedEvent));
 #if CUBQL_PROFILE
         t_nodePass[pass].sync_start();
 #endif
@@ -529,7 +529,7 @@ namespace cuBQL {
 #if CUBQL_PROFILE
         t_nodePass[pass].sync_stop();
         t_primPass[pass].sync_start();
-#endif        
+#endif
         numDone = numNodes;
 
 // #if 1
