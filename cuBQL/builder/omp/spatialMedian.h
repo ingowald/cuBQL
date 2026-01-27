@@ -10,8 +10,6 @@
 namespace cuBQL {
   namespace omp {
 
-#define NO_SORT 1
-    
     struct PrimState {
       union {
         /* careful with this order - this is intentionally chosen such
@@ -34,9 +32,8 @@ namespace cuBQL {
       using box_t = cuBQL::box_t<T,D>;
       union {
         struct {
-          AtomicBox<box_t> centBounds;
           uint32_t         count;
-          uint32_t         unused;
+          AtomicBox<box_t> centBounds;
         } openBranch;
         struct {
           uint32_t offset;
@@ -60,27 +57,17 @@ namespace cuBQL {
     {
       int tid = kernel.workIdx();
       if (tid > 0) return;
-      printf("initstate\n");
       *pNumNodes = 2;
       
-      printf("initstate1\n");
       nodeStates[0]             = OPEN_BRANCH;
-      printf("initstate2\n");
       nodes[0].openBranch.count = 0;
-      printf("initstate3\n");
-      printf("initstate3 %p\n",&nodes[0].openBranch.centBounds);
 
       ((int*)&nodes[0].openBranch.centBounds)[0] = 0;
-      printf("bla\n");
       nodes[0].openBranch.centBounds.set_empty();
 
-      printf("initstate4\n");
       nodeStates[1]            = DONE_NODE;
-      printf("initstate5\n");
       nodes[1].doneNode.offset = 0;
-      printf("initstate6\n");
       nodes[1].doneNode.count  = 0;
-      printf("initstate7\n");
     }
 
     template<typename T, int D>
@@ -149,6 +136,15 @@ namespace cuBQL {
       }
 
       auto in = nodes[nodeID].openBranch;
+      // if (nodeID < 5)
+      // printf("node split %i : %f %f %f : %f %f %f\n",
+      //        nodeID,
+      //        in.centBounds.lower.x,
+      //        in.centBounds.lower.y,
+      //        in.centBounds.lower.z,
+      //        in.centBounds.upper.x,
+      //        in.centBounds.upper.y,
+      //        in.centBounds.upper.z);
       if (in.count <= buildConfig.makeLeafThreshold) {
         auto &done  = nodes[nodeID].doneNode;
         done.count  = in.count;
@@ -169,6 +165,8 @@ namespace cuBQL {
           if (width <= widestWidth)
             continue;
           float ctr = 0.5f*(hi+lo);
+          if (ctr == lo || ctr == hi)
+            continue;
           
           widestWidth = width;
           widestDim   = d;
@@ -187,6 +185,7 @@ namespace cuBQL {
           : widestDim;
         
         open.offset = atomicAdd(pNumNodes,2);
+        // printf("offset %i\n",open.offset);
 #pragma unroll
         for (int side=0;side<2;side++) {
           const int childID = open.offset+side;
@@ -227,6 +226,7 @@ namespace cuBQL {
       if (split.dim == -1) {
         // could block-reduce this, but will likely not happen often, anyway
         side = (atomicAdd(&split.tieBreaker,1) & 1);
+        // printf("TIEBREAKER node %i prim %i\n",me.nodeID,me.primID);
       } else {
         const float center = 0.5f*(primBox.get_lower(split.dim)+
                                    primBox.get_upper(split.dim));
@@ -262,8 +262,6 @@ namespace cuBQL {
       if ((int)ps.nodeID < 0)
         /* invalid prim, just skip here */
         return;
-      if (ps.nodeID >= 853350)
-        { printf("OVERFLOW\n"); return; }
       auto &node = nodes[ps.nodeID];
       atomicMin(&node.doneNode.offset,offset);
     }
@@ -278,8 +276,11 @@ namespace cuBQL {
       if (nodeID >= numNodes) return;
       
       auto &node = nodes[nodeID].doneNode;
-      if (node.count > 0)
-        node.offset = atomicAdd(pNextFreeOffset,node.count)+node.count-1;
+      if (node.count > 0) {
+        node.offset = atomicAdd(pNextFreeOffset,node.count)+node.count;
+          // printf("wrote leaf %i offset %i\n",
+          //        nodeID,node.offset);
+      }
     }
 
     template<typename T, int D>
@@ -297,9 +298,7 @@ namespace cuBQL {
         /* invalid prim, just skip here */
         return;
       auto &node = nodes[ps.nodeID].doneNode;
-      int myPos = atomicAdd(&node.offset,(uint32_t)-1);
-      if (myPos < 0 || myPos >= numPrims)
-        printf("OVERFLOW pri\n");
+      int myPos = atomicAdd(&node.offset,(uint32_t)-1)-1;
       bvh_primIDs[myPos] = ps.primID;
     }
     
@@ -331,10 +330,6 @@ namespace cuBQL {
       if (buildConfig.makeLeafThreshold < 1)
         buildConfig.makeLeafThreshold = 1;
 
-      PING;
-      PRINT(buildConfig.makeLeafThreshold);
-      PRINT(buildConfig.maxAllowedLeafSize);
-      
       // ==================================================================
       // do build on temp nodes
       // ==================================================================
@@ -346,11 +341,6 @@ namespace cuBQL {
       ctx->alloc(nodeStates,2*numPrims);
       ctx->alloc(primStates,numPrims);
       ctx->alloc(d_numNodes,1);
-      PING;
-      PRINT(numPrims);
-      PRINT(d_numNodes);
-      PRINT((int*)nodeStates);
-      PRINT(tempNodes);
 #pragma omp target device(ctx->gpuID) is_device_ptr(d_numNodes) is_device_ptr(nodeStates) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<1;tid++)
@@ -358,16 +348,12 @@ namespace cuBQL {
                   d_numNodes,
                   nodeStates,
                   tempNodes);
-      PING;
-      PRINT(numPrims);
-      PING; fflush(0);
 #pragma omp target device(ctx->gpuID) is_device_ptr(tempNodes) is_device_ptr(primStates) is_device_ptr(boxes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numPrims;tid++)
         initPrims(Kernel{tid},tempNodes,
                   primStates,boxes,numPrims);
 
-      PING; fflush(0);
       int numDone = 0;
       uint32_t numNodes;
 
@@ -383,6 +369,7 @@ namespace cuBQL {
                        d_numNodes,
                        nodeStates,tempNodes,numNodes,
                        buildConfig);
+        
         numDone = numNodes;
 
 #pragma omp target device(ctx->gpuID) is_device_ptr(d_numNodes) is_device_ptr(nodeStates) is_device_ptr(tempNodes)
@@ -393,15 +380,11 @@ namespace cuBQL {
                       primStates,boxes,numPrims);
       }
       
-      PING;
       bvh.numPrims = numPrims;
       bvh.primIDs = 0;
-      PING;
       ctx->alloc(bvh.primIDs,numPrims);
-      PING;
       auto bvh_primIDs = bvh.primIDs;
       
-#if NO_SORT
       uint32_t zero = 0u;
       // set first uint there to zero; leaf writing code will
       // atomically inc that value to determine leaf offset values.
@@ -413,7 +396,7 @@ namespace cuBQL {
                          tempNodes,
                          bvh_primIDs,
                          numNodes);
-      
+
 #pragma omp target device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
       for (int tid=0;tid<numPrims;tid++)
@@ -422,39 +405,6 @@ namespace cuBQL {
                    tempNodes,
                    primStates,
                    numPrims);
-#else
-      // ==================================================================
-      // sort {item,nodeID} list
-      // ==================================================================
-
-#if 1
-      std::cout << "host sort ..." << std::endl;
-      PRINT(numPrims);
-      std::vector<uint64_t> h_primStates
-        = ctx->download_vector((uint64_t*)primStates,numPrims);
-      PING;
-      // ctx->download(h_primStates,primStates,numNodes*sizeof(uint64_t));
-      std::sort(h_primStates.begin(),h_primStates.end());
-      ctx->upload((uint64_t*)primStates,h_primStates.data(),numPrims);
-      PING;
-#else
-      std::cout << "openmp sort ..." << std::endl;
-      ::omp::omp_target_sort((uint64_t*)primStates,numPrims,ctx->gpuID);
-      PING;
-      // ==================================================================
-      // allocate and write BVH item list, and write offsets of leaf nodes
-      // ==================================================================
-#endif
-      PRINT(numNodes);
-#pragma omp target device(ctx->gpuID) is_device_ptr(primStates) is_device_ptr(tempNodes) is_device_ptr(primIDs)
-#pragma omp teams distribute parallel for
-      for (int tid=0;tid<numPrims;tid++)
-        writePrimsAndLeafOffsets(Kernel{tid},
-                                 tempNodes,
-                                 bvh_primIDs,primStates,numPrims);
-      
-      PING;
-#endif 
       // ==================================================================
       // allocate and write final nodes
       // ==================================================================
@@ -471,9 +421,7 @@ namespace cuBQL {
       ctx->free(primStates);
       ctx->free(d_numNodes);
 
-      PING; 
       cuBQL::omp::refit(bvh,boxes,ctx);
-      PING; 
     }
     
   }

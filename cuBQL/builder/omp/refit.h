@@ -23,8 +23,12 @@ namespace cuBQL {
       node.bounds = box_t<T,D>();
       if (node.admin.count) return;
 
-      refitData[node.admin.offset+0] = nodeID << 1;
-      refitData[node.admin.offset+1] = nodeID << 1;
+      // if (node.admin.offset < 0)
+      //   { printf("BAD OFFSET IN INIT(1)\n"); return; }
+      // if (node.admin.offset+1 >= numNodes)
+      //   { printf("BAD OFFSET IN INIT(2)\n"); return; }
+      refitData[node.admin.offset+0] = nodeID << 2;
+      refitData[node.admin.offset+1] = nodeID << 2;
     }
     
     template<typename T, int D> inline 
@@ -41,10 +45,12 @@ namespace cuBQL {
 
       typename BinaryBVH<T,D>::Node *node = bvh_nodes+nodeID;
 
+      // printf("begin nodeID %i\n",nodeID);
       if (node->admin.count == 0)
         // this is a inner node - exit
         return;
 
+      // printf(" -> leaf %i cnt %i ofs %i\n",nodeID,node->admin.count,node->admin.offset);
       box_t<T,D> bounds; bounds.set_empty();
       for (int i=0;i<node->admin.count;i++) {
         const box_t<T,D> primBox = boxes[bvh_primIDs[node->admin.offset+i]];
@@ -52,8 +58,10 @@ namespace cuBQL {
         bounds.upper = max(bounds.upper,primBox.upper);
       }
 
-      int parentID = (refitData[nodeID] >> 1);
+      
+      int parentID = (refitData[nodeID] >> 2);
       while (true) {
+        // printf("parentID %i\n",parentID);
         atomic_grow(*(AtomicBox<box_t<T,D>> *)&node->bounds,bounds);
         // node->bounds = bounds;
           
@@ -67,7 +75,7 @@ namespace cuBQL {
 
         nodeID   = parentID;
         node     = &bvh_nodes[parentID];
-        parentID = (refitBits >> 1);
+        parentID = (refitBits >> 2);
 
         int ofs = node->admin.offset;
         
@@ -100,10 +108,18 @@ namespace cuBQL {
           refit_init_x<T,D>(Kernel{i},bvh_nodes,refitData,numNodes);
       }
       PING;
+
+
+#pragma omp target device(ctx->gpuID) is_device_ptr(bvh_nodes)
+      for (int i=0;i<numNodes;i++)
+        if (bvh_nodes[i].admin.count != 0 && bvh_nodes[i].admin.offset < 0)
+          printf("REFIT INVALID OFFSET IN FINAL NODE %i\n",i);
+
+      
       PING;
       {
-#if 1
-        int nb = 128;
+#if 0
+        int nb = 1;//128;
 #pragma omp target  teams num_teams(nb) device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(bvh_nodes) is_device_ptr(refitData) is_device_ptr(boxes)
         {
           int team = omp_get_team_num();
