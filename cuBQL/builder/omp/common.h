@@ -45,32 +45,19 @@ namespace cuBQL {
       int _workIdx;
     };
 
-    inline uint32_t atomicAdd(volatile uint32_t *ptr, uint32_t inc)
+    inline uint32_t atomicAdd(uint32_t *ptr, uint32_t inc)
     {
+#ifdef __NVCOMPILER
+      return (uint32_t)((std::atomic<int> *)ptr)->fetch_add((int)inc);
+#else
       uint32_t t;
 #pragma omp atomic capture
       { t = *ptr; *ptr += inc; }
       // return ((std::atomic<int> *)p_value)->fetch_add(inc);
       return t;
+#endif
     }
     
-    inline void atomicMin(uint32_t *ptr, uint32_t value)
-    {
-      uint32_t &x = *ptr;
-#pragma omp atomic compare 
-        if (x > value) { x = value; }
-      // uint32_t t;
-// #pragma omp atomic capture
-//       { t = *ptr; *ptr = std::min(t,value); }
-      // uint32_t current = *(volatile uint32_t *)p_value;
-      // while (current > other) {
-      //   bool wasChanged
-      //     = ((std::atomic<int>*)p_value)
-      //     ->compare_exchange_weak((int&)current,(int&)other);
-      //   if (wasChanged) break;
-      // }
-    }
-
 
     // ##################################################################
     // IMPLEMENTATION SECTION

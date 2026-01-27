@@ -30,7 +30,18 @@ namespace cuBQL {
         compiler, so it's what we do for now */
     inline void atomic_min(float *ptr, float value)
     {
-#if 0
+#ifdef __NVCOMPILER
+# if 1
+      float &mem = *ptr;
+      if (mem <= value) return;
+      while (1) {
+        float wasBefore;
+#pragma omp atomic capture
+        { wasBefore = mem; mem = value; }
+        if (wasBefore >= value) break;
+        value = wasBefore;
+      }
+# else
       float current = *(volatile float *)ptr;
       while (current > value) {
         bool wasChanged
@@ -38,6 +49,7 @@ namespace cuBQL {
           ->compare_exchange_weak((int&)current,(int&)value);
         if (wasChanged) break;
       }
+# endif
 #else
       float &x = *ptr;
 #pragma omp atomic compare 
@@ -53,8 +65,19 @@ namespace cuBQL {
         sort of modern GPU - but it works in any C++-21 compliant
         compiler, so it's what we do for now */
     inline void atomic_max(float *ptr, float value)
-    {
-#if 0
+    { 
+#ifdef __NVCOMPILER
+# if 1
+      float &mem = *ptr;
+      if (mem >= value) return;
+      while (1) {
+        float wasBefore;
+#pragma omp atomic capture
+        { wasBefore = mem; mem = value; }
+        if (wasBefore <= value) break;
+        value = wasBefore;
+      }
+# else
       float current = *(volatile float *)ptr;
       while (current < value) {
         bool wasChanged
@@ -62,6 +85,7 @@ namespace cuBQL {
           ->compare_exchange_weak((int&)current,(int&)value);
         if (wasChanged) break;
       }
+# endif
 #else
       float &x = *ptr;
 #pragma omp atomic compare 
@@ -69,42 +93,6 @@ namespace cuBQL {
         //       float t;
 // #pragma omp atomic capture
 //       { t = *ptr; *ptr = std::max(t,value); }
-#endif
-    }
-    
-    /*! iw - note: this implementation of atomic min/max via atomic
-        compare-exchange (CAS); which is cetainly not optimal on any
-        sort of modern GPU - but it works in any C++-21 compliant
-        compiler, so it's what we do for now */
-    inline void atomic_min(double *ptr, double value)
-    {
-#if 0
-      double current = *(volatile double *)ptr;
-      while (current > value) {
-        bool wasChanged
-          = ((std::atomic<long long int>*)ptr)
-          ->compare_exchange_weak((long long int&)current,
-                                  (long long int&)value);
-        if (wasChanged) break;
-      }
-#endif
-    }
-    
-    /*! iw - note: this implementation of atomic min/max via atomic
-        compare-exchange (CAS); which is cetainly not optimal on any
-        sort of modern GPU - but it works in any C++-21 compliant
-        compiler, so it's what we do for now */
-    inline void atomic_max(double *ptr, double value)
-    {
-#if 0
-      double current = *(volatile double *)ptr;
-      while (current < value) {
-        bool wasChanged
-          = ((std::atomic<long long int>*)ptr)
-          ->compare_exchange_weak((long long int&)current,
-                                  (long long int&)value);
-        if (wasChanged) break;
-      }
 #endif
     }
     
