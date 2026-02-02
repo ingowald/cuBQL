@@ -100,7 +100,7 @@ namespace cuBQL {
 #pragma omp target device(ctx->gpuID) is_device_ptr(bvh_primIDs) is_device_ptr(bvh_nodes) is_device_ptr(refitData) is_device_ptr(boxes) 
 #pragma omp teams distribute parallel for 
       for (int i=0;i<numNodes;i++)
-        refit_run(Kernel{i},bvh,
+        refit_run(Kernel{i},
                     bvh_primIDs,bvh_nodes,refitData,boxes,numNodes);
       }
       ctx->free((void*)refitData);
