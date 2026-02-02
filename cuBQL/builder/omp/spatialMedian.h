@@ -410,7 +410,6 @@ namespace cuBQL {
       // ==================================================================
       bvh.numNodes = numNodes;
       ctx->alloc(bvh.nodes,numNodes);
-      PING; PRINT(numNodes);
       auto bvh_nodes = bvh.nodes;
 #pragma omp target device(ctx->gpuID) is_device_ptr(bvh_nodes) is_device_ptr(tempNodes)
 #pragma omp teams distribute parallel for
