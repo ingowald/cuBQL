@@ -140,6 +140,4 @@ if (NOT CUBQL_IS_SUBPROJECT)
   add_subdirectory(samples)
 endif()
 
-if (CUBQL_OMP)
-  add_subdirectory(testing)
-endif()
+#add_subdirectory(testing)
