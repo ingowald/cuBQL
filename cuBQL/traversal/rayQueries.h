@@ -473,7 +473,6 @@ namespace cuBQL {
                                        bool dbg)
   {
     using node_t = typename bvh_t<T, D>::node_t;
-    using T = typename bvh_t<T, D>::scalar_t;
     struct StackEntry {
       uint32_t idx;
     };
