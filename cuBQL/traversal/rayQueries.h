@@ -21,17 +21,24 @@ namespace cuBQL {
     _terminate_ a traveral, but ordering child nodes is not required
     because ordering shouldn't matter */
   namespace fixedRayQuery {
-    template<typename Lambda>
+    template<typename Lambda, typename T, int D>
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::bvh3f bvh,
+                     cuBQL::bvh_t<T, D> bvh,
+                     cuBQL::ray3f ray,
+                     bool dbg=false);
+
+    template<typename Lambda, typename T, int D, int W>
+    inline __cubql_both
+    void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
+                     cuBQL::WideBVH<T, D, W> bvh,
                      cuBQL::ray3f ray,
                      bool dbg=false);
     
-    template<typename Lambda>
+    template<typename Lambda, typename bvh_t>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::bvh3f bvh,
+                     bvh_t bvh,
                      cuBQL::ray3f ray,
                      bool dbg=false);
     
@@ -77,10 +84,20 @@ namespace cuBQL {
     /*! single level BVH ray traversal, provided lambda covers what
       happens when a ray wants to intersect a given prim within that
       bvh */
-    template<typename Lambda, typename bvh_t, typename ray_t>
+    template<typename Lambda, typename T, int D, typename ray_t>
     inline __cubql_both
     float forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                      bvh_t bvh,
+                      bvh_t<T, D> bvh,
+                      ray_t ray,
+                      bool dbg=false);
+
+    /*! single level BVH ray traversal, provided lambda covers what
+      happens when a ray wants to intersect a given prim within that
+      bvh */
+    template<typename Lambda, typename T, int D, int W, typename ray_t>
+    inline __cubql_both
+    float forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
+                      WideBVH<T, D, W> bvh,
                       ray_t ray,
                       bool dbg=false);
     
@@ -243,12 +260,10 @@ namespace cuBQL {
     forEachLeaf(leafCode,bvh,ray,dbg);
   }
 
-
-
-  template<typename Lambda>
+  template<typename Lambda, typename T, int D>
   inline __cubql_both
   void fixedRayQuery::forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                                  cuBQL::bvh3f bvh,
+                                  cuBQL::bvh_t<T, D> bvh,
                                   cuBQL::ray3f ray,
                                   bool dbg)
   {
@@ -314,12 +329,121 @@ namespace cuBQL {
     }
   }
 
+  template<int N>
+  struct ChildOrder {
+    inline __cubql_both void clear(int i) { v[i] = (uint64_t)-1; }
+    inline __cubql_both void set(int i, float dist, uint32_t payload) {
+        v[i] = (uint64_t(__float_as_int(dist)) << 32) | payload;
+    }
+    uint64_t v[N];
+  };
+
+  template<int N>
+  inline __cubql_both void sort(ChildOrder<N>& children)
+  {
+#pragma unroll
+      for (int i = N - 1; i > 0; --i) {
+#pragma unroll
+          for (int j = 0; j < i; j++) {
+              uint64_t c0 = children.v[j + 0];
+              uint64_t c1 = children.v[j + 1];
+              children.v[j + 0] = min(c0, c1);
+              children.v[j + 1] = max(c0, c1);
+          }
+      }
+  }
+
+  template<typename Lambda, typename T, int D, int W>
+  inline __cubql_both
+  void fixedRayQuery::forEachLeaf(const Lambda& lambdaToCallOnEachLeaf,
+                                  cuBQL::WideBVH<T, D, W> bvh,
+                                  cuBQL::ray3f ray,
+                                  bool dbg)
+  {
+      using node_t = typename WideBVH<T, D, W>::node_t;
+
+      int traversalStack[64], * stackPtr = traversalStack;
+      int nodeID = 0;
+
+      if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
+      if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
+      if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
+      vec_t<T, 3> rcp_dir = rcp(ray.direction);
+
+      ChildOrder<W> childOrder;
+
+      // ------------------------------------------------------------------
+      // traverse until there's nothing left to traverse:
+      // ------------------------------------------------------------------
+      while (true) {
+          while (true) {
+              while (nodeID == -1) {
+                  if (stackPtr == traversalStack)
+                      return;
+                  nodeID = *--stackPtr;
+                  // pop....
+              }
+              if (nodeID & (1 << 31))
+                  break;
+
+              node_t const& node = bvh.nodes[nodeID];
+#pragma unroll
+              for (int c = 0; c < W; c++) {
+                  const auto child = node.children[c];
+                  if (!node.children[c].valid)
+                      childOrder.clear(c);
+                  else {
+                      float dist2;
+                      bool o = rayIntersectsBox(dist2, ray, rcp_dir, node.children[c].bounds);
+                      if (!o)
+                          childOrder.clear(c);
+                      else {
+                          uint32_t payload = child.count ?
+                              ((1 << 31) | (nodeID << log_of<W>::value) | c) : child.offset;
+                          childOrder.set(c, dist2, payload);
+                      }
+                  }
+              }
+              sort(childOrder);
+#pragma unroll
+              for (int c = W - 1; c > 0; --c) {
+                  uint64_t coc = childOrder.v[c];
+                  if (coc != uint64_t(-1)) {
+                      *stackPtr++ = coc;
+                      // if (stackPtr - stackBase == stackSize)
+                      //   printf("stack overrun!\n");
+                  }
+              }
+              if (childOrder.v[0] == uint64_t(-1)) {
+                  nodeID = -1;
+                  continue;
+              }
+              nodeID = uint32_t(childOrder.v[0]);
+          }
+
+          int c = nodeID & ((1 << log_of<W>::value) - 1);
+          int n = (nodeID & 0x7fffffff) >> log_of<W>::value;
+          int offset = bvh.nodes[n].children[c].offset;
+          int count = bvh.nodes[n].children[c].count;
+
+          if (count != 0) {
+              // we're at a valid leaf: call the lambda and see if that gave
+              // us a new, closer cull radius
+              int leafResult
+                  = lambdaToCallOnEachLeaf(bvh.primIDs + offset, count);
+              if (leafResult == CUBQL_TERMINATE_TRAVERSAL)
+                  return;
+          }
+          nodeID = -1;
+      }
+  }
+
   /*! this query assumes lambads that return CUBQL_CONTINUE_TRAVERSAL
     or CUBQL_TERMINATE_TRAVERSAL */
-  template<typename Lambda>
+  template<typename Lambda, typename bvh_t>
   inline __cubql_both
   void fixedRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                                  cuBQL::bvh3f bvh,
+                                  bvh_t bvh,
                                   cuBQL::ray3f ray,
                                   bool dbg)
   {
@@ -341,15 +465,14 @@ namespace cuBQL {
     forEachLeaf(leafCode,bvh,ray,dbg);
   }
     
-  template<typename Lambda, typename bvh_t, typename ray_t>
+  template<typename Lambda, typename T, int D, typename ray_t>
   inline __cubql_both
   float shrinkingRayQuery::forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                                       bvh_t bvh,
+                                       bvh_t<T, D> bvh,
                                        ray_t ray,
                                        bool dbg)
   {
-    using node_t = typename bvh_t::node_t;
-    using T = typename bvh_t::scalar_t;
+    using node_t = typename bvh_t<T, D>::node_t;
     struct StackEntry {
       uint32_t idx;
     };
@@ -417,6 +540,90 @@ namespace cuBQL {
         return ray.tMax;
       node = *--stackPtr;
     }
+  }
+
+  template<typename Lambda, typename T, int D, int W, typename ray_t>
+  inline __cubql_both
+  float shrinkingRayQuery::forEachLeaf(const Lambda& lambdaToCallOnEachLeaf,
+                                       WideBVH<T, D, W> bvh,
+                                       ray_t ray,
+                                       bool dbg)
+  {
+      using node_t = typename WideBVH<T, D, W>::node_t;
+
+      int traversalStack[64], * stackPtr = traversalStack;
+      int nodeID = 0;
+
+      if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
+      if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
+      if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
+      vec_t<T, 3> rcp_dir = rcp(ray.direction);
+
+      ChildOrder<W> childOrder;
+
+      // ------------------------------------------------------------------
+      // traverse until there's nothing left to traverse:
+      // ------------------------------------------------------------------
+      while (true) {
+          while (true) {
+              while (nodeID == -1) {
+                  if (stackPtr == traversalStack)
+                      return ray.tMax;
+                  nodeID = *--stackPtr;
+                  // pop....
+              }
+              if (nodeID & (1 << 31))
+                  break;
+
+              node_t const& node = bvh.nodes[nodeID];
+#pragma unroll
+              for (int c = 0; c < W; c++) {
+                  const auto child = node.children[c];
+                  if (!node.children[c].valid)
+                      childOrder.clear(c);
+                  else {
+                      float dist2;
+                      bool o = rayIntersectsBox(dist2, ray, rcp_dir, node.children[c].bounds);
+                      if (!o)
+                          childOrder.clear(c);
+                      else {
+                          uint32_t payload = child.count ?
+                              ((1 << 31) | (nodeID << log_of<W>::value) | c) : child.offset;
+                          childOrder.set(c, dist2, payload);
+                      }
+                  }
+              }
+              sort(childOrder);
+#pragma unroll
+              for (int c = W - 1; c > 0; --c) {
+                  uint64_t coc = childOrder.v[c];
+                  if (coc != uint64_t(-1)) {
+                      *stackPtr++ = coc;
+                      // if (stackPtr - stackBase == stackSize)
+                      //   printf("stack overrun!\n");
+                  }
+              }
+              if (childOrder.v[0] == uint64_t(-1)) {
+                  nodeID = -1;
+                  continue;
+              }
+              nodeID = uint32_t(childOrder.v[0]);
+          }
+
+          int c = nodeID & ((1 << log_of<W>::value) - 1);
+          int n = (nodeID & 0x7fffffff) >> log_of<W>::value;
+          int offset = bvh.nodes[n].children[c].offset;
+          int count = bvh.nodes[n].children[c].count;
+
+          if (count != 0) {
+              // we're at a valid leaf: call the lambda and see if that gave
+              // us a new, closer cull radius
+              ray.tMax
+                  = lambdaToCallOnEachLeaf(bvh.primIDs + offset, count);
+          }
+          nodeID = -1;
+      }
+      return T(CUBQL_INF);
   }
 
   template<typename Lambda, typename bvh_t, typename ray_t>
