@@ -112,6 +112,19 @@ if (CUBQL_HAVE_CUDA)
     )
 endif()
 
+if (CUBQL_HAVE_CUDA)
+  add_executable(sample07_aggregateNBody
+    s07_aggregateNBody/aggregateNBody.cu
+    )
+  target_link_libraries(sample07_aggregateNBody
+    # the cuda-side builders for float3 data
+    cuBQL_cuda_float3
+    # common samples stuff
+    cuBQL_samples_common
+    stb_image
+    )
+endif()
+
 
 
 
