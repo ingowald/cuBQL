@@ -186,16 +186,32 @@ namespace cuBQL {
                            cudaStream_t       s=0,
                            GpuMemoryResource &memResource=defaultGpuMemResource());
   
+    // ------------------------------------------------------------------
+    /*! refit a previously built boxes to a new set of bounding
+        boxes. The order of boxes in the array boxes[] has to
+        correspond to that used when building the tree. */
+    // ------------------------------------------------------------------
+    template<typename T, int D>
+    void refit(BinaryBVH<T,D>    &bvh,
+               const box_t<T,D>  *boxes,
+               cudaStream_t       s=0,
+               GpuMemoryResource &memResource=defaultGpuMemResource());
+    
+    // ------------------------------------------------------------------
     /*! frees the bvh.nodes[] and bvh.primIDs[] memory allocated when
       building the BVH. this assumes that the 'memResource' provided
       here was the same that was used during building */
+    // ------------------------------------------------------------------
     template<typename T, int D>
     void free(BinaryBVH<T,D> &bvh,
               cudaStream_t      s=0,
               GpuMemoryResource& memResource=defaultGpuMemResource());
+    
+    // ------------------------------------------------------------------
     /*! frees the bvh.nodes[] and bvh.primIDs[] memory allocated when
       building the BVH. this assumes that the 'memResource' provided
       here was the same that was used during building */
+    // ------------------------------------------------------------------
     template<typename T, int D, int W>
     void free(WideBVH<T,D,W> &bvh,
               cudaStream_t      s=0,

@@ -1459,20 +1459,24 @@ namespace cuBQL {
       // ==================================================================
       // done. all we need to do now is refit the bboxes
       // ==================================================================
-      gpuBuilder_impl::refit(bvh,boxes,s,memResource);
+      cuBQL::cuda::refit(bvh,boxes,s,memResource);
     }
   }
-
+  
   namespace cuda {
     template<typename T, int D>
     void rebinRadixBuilder(BinaryBVH<T,D>    &bvh,
-                            const box_t<T,D>  *boxes,
-                            uint32_t           numPrims,
-                            BuildConfig        buildConfig,
-                            cudaStream_t       s,
-                            GpuMemoryResource &memResource)
-    { rebinRadixBuilder_impl::build<T,D>(bvh,boxes,numPrims,buildConfig,s,memResource); }
-  }
-}
+                           const box_t<T,D>  *boxes,
+                           uint32_t           numPrims,
+                           BuildConfig        buildConfig,
+                           cudaStream_t       s,
+                           GpuMemoryResource &memResource)
+    {
+      rebinRadixBuilder_impl::build<T,D>
+        (bvh,boxes,numPrims,buildConfig,s,memResource);
+    }
+    
+  } // ::cuBQL::cuda
+} // ::cuBQL
 #endif
 

@@ -742,7 +742,7 @@ namespace cuBQL {
       // ==================================================================
       // done. all we need to do now is refit the bboxes
       // ==================================================================
-      gpuBuilder_impl::refit(bvh,boxes,s,memResource);
+      cuBQL::cuda::refit(bvh,boxes,s,memResource);
     }
   }
 

@@ -14,6 +14,12 @@
 #include <float.h>
 #include <limits.h>
 
+#ifdef __HIPCC__
+namespace cub {
+  using namespace hipcub;
+}
+#endif
+
 namespace cuBQL {
   namespace gpuBuilder_impl {
 
