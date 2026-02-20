@@ -46,7 +46,7 @@ namespace cuBQL {
                     /*! square of the maximum query distance in which
                       this query is to look for candidates. note
                       this is the SQUARE distance */
-                    float squareOfMaxQueryDistance=INFINITY);
+                    float squareOfMaxQueryDistance=PosInfTy());
 
     /*! given a (W-wide) bvh build over a set of float<N> points,
       perform a closest-point query that returns the index of the
@@ -77,7 +77,7 @@ namespace cuBQL {
                     /*! square of the maximum query distance in which
                       this query is to look for candidates. note
                       this is the SQUARE distance */
-                    float squareOfMaxQueryDistance=INFINITY);
+                    float squareOfMaxQueryDistance=PosInfTy());
 
 
     template<typename T, int D>
@@ -95,7 +95,7 @@ namespace cuBQL {
                              /*! square of the maximum query distance in which
                                this query is to look for candidates. note
                                this is the SQUARE distance */
-                             float squareOfMaxQueryDistance=INFINITY);
+                             float squareOfMaxQueryDistance=PosInfTy());
     
     template<typename T, int D>
     /*! same as regular points::closestPoint, but excluding all data
@@ -112,7 +112,7 @@ namespace cuBQL {
                                /*! square of the maximum query distance in which
                                  this query is to look for candidates. note
                                  this is the SQUARE distance */
-                               float squareOfMaxQueryDistance=INFINITY);
+                               float squareOfMaxQueryDistance=PosInfTy());
 
 #ifdef __CUDACC__
     // ******************************************************************
@@ -128,7 +128,7 @@ namespace cuBQL {
                     /*! square of the maximum query distance in which
                       this query is to look for candidates. note
                       this is the SQUARE distance */
-                    float squareOfMaxQueryDistance=INFINITY);
+                    float squareOfMaxQueryDistance=PosInfTy());
 
     // ******************************************************************
     /*! variant of cuBQL::point::findClosest() that's specialized for
@@ -143,7 +143,7 @@ namespace cuBQL {
                     /*! square of the maximum query distance in which
                       this query is to look for candidates. note
                       this is the SQUARE distance */
-                    float squareOfMaxQueryDistance=INFINITY);
+                    float squareOfMaxQueryDistance=PosInfTy());
 
     // ******************************************************************
     /*! variant of cuBQL::point::findClosest() that's specialized for
@@ -158,7 +158,7 @@ namespace cuBQL {
                     /*! square of the maximum query distance in which
                       this query is to look for candidates. note
                       this is the SQUARE distance */
-                    float squareOfMaxQueryDistance=INFINITY);
+                    float squareOfMaxQueryDistance=PosInfTy());
 #endif
     
     // ******************************************************************
@@ -179,7 +179,7 @@ namespace cuBQL {
                                   /*! square of the maximum query distance in which
                                     this query is to look for candidates. note
                                     this is the SQUARE distance */
-                                  float squareOfMaxQueryDistance=INFINITY)
+                                  float squareOfMaxQueryDistance=PosInfTy())
     {
       int closestID = -1;
       float closestSqrDist = squareOfMaxQueryDistance;
@@ -227,7 +227,7 @@ namespace cuBQL {
                                   /*! square of the maximum query distance in which
                                     this query is to look for candidates. note
                                     this is the SQUARE distance */
-                                  float squareOfMaxQueryDistance=INFINITY)
+                                  float squareOfMaxQueryDistance=PosInfTy())
     {
       int closestID = -1;
       float closestSqrDist = squareOfMaxQueryDistance;

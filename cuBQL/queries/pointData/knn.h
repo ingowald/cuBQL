@@ -52,7 +52,7 @@ namespace cuBQL {
                                /*! square of the maximum query distance in which
                                  this query is to look for candidates. note
                                  this is the SQUARE distance */
-                               float squareOfMaxQueryDistance=INFINITY);
+                               float squareOfMaxQueryDistance=PosInfTy());
     
     
     // ******************************************************************
