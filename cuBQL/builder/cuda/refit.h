@@ -76,12 +76,13 @@ namespace cuBQL {
                cudaStream_t       s,
                GpuMemoryResource &memResource)
     {
-      uint32_t *refitData = 0;
-      memResource.malloc((void**)&refitData,bvh.numNodes*sizeof(int),s);
-      
       int numNodes = bvh.numNodes;
+      
+      uint32_t *refitData = 0;
+      memResource.malloc((void**)&refitData,numNodes*sizeof(*refitData),s);
+      
       refit_init<T,D><<<divRoundUp(numNodes,1024),1024,0,s>>>
-        (bvh.nodes,refitData,bvh.numNodes);
+        (bvh.nodes,refitData,numNodes);
       refit_run<<<divRoundUp(numNodes,32),32,0,s>>>
         (bvh,refitData,boxes);
       memResource.free((void*)refitData,s);

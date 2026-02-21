@@ -42,9 +42,9 @@ namespace nBody {
   /*! aggregation function that computes a node's aggregate data
     during aggragate_refit */
   inline __device__
-  void aggregate(int nodeID,
+  void aggregate(bvh3f bvh,
                  AggregateNodeData nodeAggregates[],
-                 bvh3f bvh)
+                 int nodeID)
   {
     auto node = bvh.nodes[nodeID].admin;
     if (node.count != 0) {
