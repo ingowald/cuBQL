@@ -542,7 +542,7 @@ namespace cuBQL {
       _FREE(buildState,s,memResource);
       _FREE(sahBins,s,memResource);
 
-      gpuBuilder_impl::refit(bvh,boxes,s,memResource);
+      cuBQL::cuda::refit(bvh,boxes,s,memResource);
     }
 
     template<>
