@@ -356,34 +356,53 @@ namespace cuBQL {
   /* vec:vec */                                                         \
   template<typename T, int D>                                           \
   inline __cubql_both                                                   \
-  vec_t<T,D> long_op(vec_t<T,D> a, vec_t<T,D> b)                        \
+  vec_t<T,D> long_op(const vec_t<T,D> &a, const vec_t<T,D> &b)          \
   {                                                                     \
     vec_t<T,D> r;                                                       \
-    CUBQL_PRAGMA_UNROLL                                                 \
-      for (int i=0;i<D;i++) r[i] = a[i] op b[i];                        \
+    for (int i=0;i<D;i++) r[i] = a[i] op b[i];                          \
+    return r;                                                           \
+  }                                                                     \
+  template<typename T>                                                  \
+  inline __cubql_both                                                   \
+  vec_t<T,2> long_op(const vec_t<T,2> &a, const vec_t<T,2> &b)          \
+  {                                                                     \
+    vec_t<T,2> r;                                                       \
+    r.x = a.x op b.x;                                                   \
+    r.y = a.y op b.y;                                                   \
+    return r;                                                           \
+  }                                                                     \
+  template<typename T>                                                  \
+  inline __cubql_both                                                   \
+  vec_t<T,3> long_op(const vec_t<T,3> &a, const vec_t<T,3> &b)          \
+  {                                                                     \
+    vec_t<T,3> r;                                                       \
+    r.x = a.x op b.x;                                                   \
+    r.y = a.y op b.y;                                                   \
+    r.z = a.z op b.z;                                                   \
+    return r;                                                           \
+  }                                                                     \
+  template<typename T>                                                  \
+  inline __cubql_both                                                   \
+  vec_t<T,4> long_op(const vec_t<T,4> &a, const vec_t<T,4> &b)          \
+  {                                                                     \
+    vec_t<T,4> r;                                                       \
+    r.x = a.x op b.x;                                                   \
+    r.y = a.y op b.y;                                                   \
+    r.z = a.z op b.z;                                                   \
+    r.w = a.w op b.w;                                                   \
     return r;                                                           \
   }                                                                     \
   /* scalar-vec */                                                      \
   template<typename T, int D>                                           \
   inline __cubql_both                                                   \
-  vec_t<T,D> long_op(T a, vec_t<T,D> b)                                 \
-  {                                                                     \
-    vec_t<T,D> r;                                                       \
-    CUBQL_PRAGMA_UNROLL                                                 \
-      for (int i=0;i<D;i++) r[i] = a op b[i];                           \
-    return r;                                                           \
-  }                                                                     \
-    /* vec:scalar */                                                    \
-    template<typename T, int D>                                         \
-    inline __cubql_both                                                 \
-    vec_t<T,D> long_op(vec_t<T,D> a, T b)                               \
-    {                                                                   \
-      vec_t<T,D> r;                                                     \
-      CUBQL_PRAGMA_UNROLL                                               \
-        for (int i=0;i<D;i++) r[i] = a[i] op b;                         \
-      return r;                                                         \
-    }                                                                   \
-    CUBQL_OPERATOR_CUDA_T(long_op,op)
+  vec_t<T,D> long_op(T a, const vec_t<T,D> &b)                          \
+  { return vec_t<T,D>(a) op b; }                                        \
+  /* vec:scalar */                                                      \
+  template<typename T, int D>                                           \
+  inline __cubql_both                                                   \
+  vec_t<T,D> long_op(const vec_t<T,D> &a, T b)                          \
+  { return a op vec_t<T,D>(b); }                                        \
+  CUBQL_OPERATOR_CUDA_T(long_op,op)
 
   CUBQL_OPERATOR(operator+,+)
   CUBQL_OPERATOR(operator-,-)
