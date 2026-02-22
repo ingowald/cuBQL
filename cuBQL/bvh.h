@@ -16,6 +16,9 @@ namespace cuBQL {
       build the tree; in particular, at which threshold to make a
       leaf */
   struct BuildConfig {
+    BuildConfig(int makeLeafThreshold=0)
+      : makeLeafThreshold(makeLeafThreshold)
+    {}
     inline BuildConfig &enableSAH() { buildMethod = SAH; return *this; }
     inline BuildConfig &enableELH() { buildMethod = ELH; return *this; }
     typedef enum

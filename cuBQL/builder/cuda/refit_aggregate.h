@@ -16,23 +16,33 @@ namespace cuBQL {
     template<
       typename T,
       int D,
-      typename AggregateNodeData,
-      typename AggregateFct>
+      typename AggregateNodeData
+      // ,
+      // typename AggregateFct
+      >
     void refit_aggregate(BinaryBVH<T,D> bvh,
                          AggregateNodeData *d_aggregateNodeData,
-                         const AggregateFct &aggregateFct,
+                         void (*aggregateFct)(bvh3f,
+                                              AggregateNodeData[],
+                                              int),
+                         // const AggregateFct &aggregateFct,
                          cudaStream_t       s
                          =0,
                          GpuMemoryResource &memResource
                          =defaultGpuMemResource());
     
     template<typename T, int D,
-             typename AggregateNodeData,
-             typename AggregateFct>
+             typename AggregateNodeData
+             // ,
+             // typename AggregateFct
+             >
     __global__
     void refit_aggregate_run(BinaryBVH<T,D> bvh,
                              AggregateNodeData *aggregateNodeData,
-                             const AggregateFct &aggregateFct,
+                         void (*aggregateFct)(bvh3f,
+                                              AggregateNodeData[],
+                                              int),
+                             // const AggregateFct &aggregateFct,
                              uint32_t *refitData)
     {
       int nodeID = threadIdx.x+blockIdx.x*blockDim.x;
@@ -81,11 +91,17 @@ namespace cuBQL {
     template<
       typename T,
       int D,
-      typename AggregateNodeData,
-      typename AggregateFct>
+      typename AggregateNodeData
+      // ,
+      // typename AggregateFct
+      >
     void refit_aggregate(BinaryBVH<T,D> bvh,
                          AggregateNodeData *d_aggregateNodeData,
-                         const AggregateFct &aggregateFct,
+                         // const AggregateFct &aggregateFct,
+                         // __device__
+                         void (*aggregateFct)(bvh3f,
+                                              AggregateNodeData[],
+                                              int),
                          cudaStream_t       s,
                          GpuMemoryResource &memResource)
     {
@@ -93,11 +109,15 @@ namespace cuBQL {
       
       uint32_t *refitData = 0;
       memResource.malloc((void**)&refitData,numNodes*sizeof(*refitData),s);
+  CUBQL_CUDA_SYNC_CHECK();
       refit_init<T,D><<<divRoundUp(numNodes,1024),1024,0,s>>>
         (bvh.nodes,refitData,numNodes);
+  CUBQL_CUDA_SYNC_CHECK();
       refit_aggregate_run<<<divRoundUp(numNodes,32),32,0,s>>>
         (bvh,d_aggregateNodeData,aggregateFct,refitData);
+  CUBQL_CUDA_SYNC_CHECK();
       memResource.free((void*)refitData,s);
+  CUBQL_CUDA_SYNC_CHECK();
       // we're not syncing here - let APP do that
     }
   }

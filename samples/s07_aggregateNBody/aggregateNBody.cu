@@ -41,7 +41,8 @@ namespace nBody {
 
   /*! aggregation function that computes a node's aggregate data
     during aggragate_refit */
-  inline __device__
+  // inline
+  __device__
   void aggregate(bvh3f bvh,
                  AggregateNodeData nodeAggregates[],
                  int nodeID)
@@ -60,6 +61,26 @@ namespace nBody {
     }
   }
 
+  typedef void (*AggregateNodeFctPtr)(bvh3f, AggregateNodeData *, int);
+  __global__ 
+  void k_get_aggregate(AggregateNodeFctPtr *d_result)
+  {
+    if (threadIdx.x != 0) return;
+    *d_result = aggregate;
+  }
+  
+  AggregateNodeFctPtr  get_aggregate()
+  {
+    AggregateNodeFctPtr result = 0;
+    AggregateNodeFctPtr *d_resultPtr = 0;
+    CUBQL_CUDA_CALL(Malloc((void**)&d_resultPtr,
+                           sizeof(AggregateNodeFctPtr)));
+    k_get_aggregate<<<1,32>>>(d_resultPtr);
+    CUBQL_CUDA_CALL(Memcpy((void*)&result,(void*)d_resultPtr,
+                           sizeof(void*), cudaMemcpyDefault));
+    return result;
+  }
+  
   /*! the final result type that results from iterating over the
       entire tree. FOr our simple n-body mock-up, it's simply a float
       to track sum_i{1/sqrDistance(queryPoint,dataPoint[i])} */
@@ -93,10 +114,10 @@ namespace nBody {
     // first, check if we can approximate this subtree
     float sqrDist = sqrDistance(node.bounds,queryPoint);
     float sqrDiag = sqrLength(node.bounds.size());
-    const float approxThreshold = /* 1% */0.01f;
+    const float approxThreshold = /* 1% of fource*/0.01f;
     bool canApproximate
       = sqrDist > 0.f
-      && (sqrDiag / sqrDist <= sqr(approxThreshold));
+      && (sqrDiag / sqrDist <= approxThreshold);
 
     if (canApproximate) {
       result.sumOfForces
@@ -157,8 +178,7 @@ void runQueries(float *d_results,
 
 int main(int, char **)
 {
-  int numDataPoints = 10000;
-  int numQueryPoints = 20;
+  int numDataPoints = 100000;
   /*! generate 10,000 uniformly distributed data points */
   std::vector<vec3f> dataPoints
     = cuBQL::samples::convert<float>
@@ -166,27 +186,17 @@ int main(int, char **)
      .generate(numDataPoints,290374));
   std::cout << "#cubql: generated " << dataPoints.size()
             << " data points" << std::endl;
-  std::vector<vec3f> queryPoints
-    = cuBQL::samples::convert<float>
-    (cuBQL::samples::UniformPointGenerator<3>()
-     .generate(numQueryPoints,/*seed*/1234567));
-  std::cout << "#cubql: generated " << queryPoints.size()
-            << " query points" << std::endl;
 
-  vec3f *d_queryPoints = 0;
   vec3f *d_dataPoints = 0;
   box3f *d_primBounds = 0;
-  float *d_results = 0;
-  CUBQL_CUDA_CALL(Malloc((void **)&d_results,queryPoints.size()*sizeof(*d_results)));
-  CUBQL_CUDA_CALL(Malloc((void **)&d_queryPoints,queryPoints.size()*sizeof(vec3f)));
-  CUBQL_CUDA_CALL(Memcpy(d_queryPoints,queryPoints.data(),
-                         queryPoints.size()*sizeof(queryPoints[0]),
+  CUBQL_CUDA_CALL(Malloc((void **)&d_dataPoints,
+                         numDataPoints*sizeof(*d_dataPoints)));
+  CUBQL_CUDA_CALL(Memcpy((void *)d_dataPoints,dataPoints.data(),
+                         numDataPoints*sizeof(*d_dataPoints),
                          cudaMemcpyDefault));
-  CUBQL_CUDA_CALL(Malloc((void **)&d_dataPoints,dataPoints.size()*sizeof(vec3f)));
-  CUBQL_CUDA_CALL(Memcpy(d_dataPoints,dataPoints.data(),
-                         dataPoints.size()*sizeof(dataPoints[0]),
-                         cudaMemcpyDefault));
-  CUBQL_CUDA_CALL(Malloc((void **)&d_primBounds,dataPoints.size()*sizeof(box3f)));
+  
+  CUBQL_CUDA_CALL(Malloc((void **)&d_primBounds,
+                         numDataPoints*sizeof(box3f)));
   computeBoxes<<<divRoundUp(numDataPoints,128),128>>>
     (d_primBounds,d_dataPoints,numDataPoints);
 
@@ -194,21 +204,33 @@ int main(int, char **)
   // generate initial cuBQL bvh over the data points
   // ------------------------------------------------------------------
   bvh3f bvh;
-  cuBQL::gpuBuilder(bvh,d_primBounds,numDataPoints,BuildConfig());
-
+  cuBQL::gpuBuilder(bvh,d_primBounds,numDataPoints,BuildConfig(8));
+  CUBQL_CUDA_SYNC_CHECK();
+  
   // ------------------------------------------------------------------
   // re-fit kernel-specific aggregate data on top of the bvh
   // ------------------------------------------------------------------
   nBody::AggregateNodeData *d_nodeAggregates = 0;
   CUBQL_CUDA_CALL(Malloc((void **)&d_nodeAggregates,
                          bvh.numNodes*sizeof(*d_nodeAggregates)));
+  CUBQL_CUDA_SYNC_CHECK();
   cuBQL::cuda::refit_aggregate(bvh,
                                d_nodeAggregates,
-                               nBody::aggregate);
+                               nBody::get_aggregate()
+                               // nBody::aggregate
+                               );
+  CUBQL_CUDA_SYNC_CHECK();
   
   // ------------------------------------------------------------------
   // ready to run query
   // ------------------------------------------------------------------
+  float *d_results = 0;
+  int numQueryPoints = numDataPoints;
+  // int numQueryPoints = std::min(numDataPoints,16*1024);
+  CUBQL_CUDA_CALL(Malloc((void **)&d_results,
+                         numQueryPoints*sizeof(*d_results)));
+
+  auto d_queryPoints = d_dataPoints;
   runQueries<<<divRoundUp(numQueryPoints,128),128>>>
     (d_results,bvh,d_nodeAggregates,
      d_dataPoints,d_queryPoints,numQueryPoints);

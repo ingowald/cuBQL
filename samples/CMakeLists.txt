@@ -123,6 +123,16 @@ if (CUBQL_HAVE_CUDA)
     cuBQL_samples_common
     stb_image
     )
+  set_target_properties(sample07_aggregateNBody
+    PROPERTIES
+    CUDA_SEPARABLE_COMPILATION   ON
+    POSITION_INDEPENDENT_CODE    ON
+    CUDA_USE_STATIC_CUDA_RUNTIME ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS  ON
+    CXX_VISIBILITY_PRESET  hidden
+    CUDA_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+  )
 endif()
 
 
