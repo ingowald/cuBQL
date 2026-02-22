@@ -19,10 +19,7 @@ void d_computeVolume(float   *d_result,
                      vec3i   *d_indices,
                      vec3f   *d_vertices,
                      box3f    worldBounds,
-                     bvh3f    bvh,
-                     /*! if true, we only check the bounding boxes of
-                       triangles, not actual box-triangle tests */ 
-                     bool     checkOnlyBoundingBoxes)
+                     bvh3f    bvh)
 {
   int ix = threadIdx.x+blockIdx.x*blockDim.x; if (ix >= dims.x) return;
   int iy = threadIdx.y+blockIdx.y*blockDim.y; if (iy >= dims.y) return;
@@ -93,8 +90,7 @@ cuBQL::bvh3f buildBVH(int numTriangles,
 std::vector<float> computeVolume(const std::vector<vec3i> &indices,
                                  const std::vector<vec3f> &vertices,
                                  vec3i dims,
-                                 box3f worldBounds,
-                                 bool  checkOnlyBoundingBoxes)
+                                 box3f worldBounds)
 {
   int numCells = dims.x*dims.y*dims.z;
   std::vector<float> result(numCells);
@@ -110,7 +106,7 @@ std::vector<float> computeVolume(const std::vector<vec3i> &indices,
   vec3i nb = divRoundUp(dims,bs);
   d_computeVolume<<<(dim3)nb,(dim3)bs>>>(d_result,dims,d_indices,d_vertices,
                              worldBounds,
-                             bvh,checkOnlyBoundingBoxes);
+                             bvh);
   
   cuBQL::cuda::free(bvh);
   
@@ -132,7 +128,6 @@ int main(int ac, char **av)
 {
   std::string inFileName = "";
   std::string outFilePrefix = "";
-  bool checkOnlyBoundingBoxes = false;
   int n = 256;
   for (int i=1;i<ac;i++) {
     const std::string arg = av[i];
@@ -140,8 +135,6 @@ int main(int ac, char **av)
       inFileName = arg;
     else if (arg == "-o")
       outFilePrefix = av[++i];
-    else if (arg == "-bo" || arg == "--boxes-only") 
-      checkOnlyBoundingBoxes = true;
     else if (arg == "-n") 
       n = std::stoi(av[++i]);
     else
@@ -167,7 +160,7 @@ int main(int ac, char **av)
   std::cout << "using volume dims of " << dims << std::endl;
 
   std::vector<float> result
-    = computeVolume(indices,vertices,dims,bb,checkOnlyBoundingBoxes);
+    = computeVolume(indices,vertices,dims,bb);
   const std::string outFileName =
     outFilePrefix
     +"_"+std::to_string(dims.x)
