@@ -41,7 +41,6 @@ namespace nBody {
 
   /*! aggregation function that computes a node's aggregate data
     during aggragate_refit */
-  // inline
   __device__
   void aggregate(bvh3f bvh,
                  AggregateNodeData nodeAggregates[],
@@ -60,24 +59,32 @@ namespace nBody {
         + nodeAggregates[node.offset+1].numBodiesInSubtree;
     }
   }
+  typedef void (*AggregateNodeFctPtr)(bvh3f bvh,
+                                      AggregateNodeData nodeAggregates[],
+                                      int nodeID);
+  
 
-  typedef void (*AggregateNodeFctPtr)(bvh3f, AggregateNodeData *, int);
-  __global__ 
-  void k_get_aggregate(AggregateNodeFctPtr *d_result)
-  {
-    if (threadIdx.x != 0) return;
-    *d_result = aggregate;
-  }
+  __device__ AggregateNodeFctPtr aggregate_funcPtr = nBody::aggregate;
   
   AggregateNodeFctPtr  get_aggregate()
   {
     AggregateNodeFctPtr result = 0;
+#if 1
+    // CUBQL_CUDA_CALL(Memcpy((void*)&result,(void*)&funcPtr,
+    //                        sizeof(void*), cudaMemcpyDefault));
+    cudaMemcpyFromSymbol((void*)&result,
+                         nBody::aggregate_funcPtr,
+                         // nBody::funcPtr,
+                         sizeof(void*));
+#else
+    
     AggregateNodeFctPtr *d_resultPtr = 0;
     CUBQL_CUDA_CALL(Malloc((void**)&d_resultPtr,
                            sizeof(AggregateNodeFctPtr)));
     k_get_aggregate<<<1,32>>>(d_resultPtr);
     CUBQL_CUDA_CALL(Memcpy((void*)&result,(void*)d_resultPtr,
                            sizeof(void*), cudaMemcpyDefault));
+#endif
     return result;
   }
   
