@@ -85,7 +85,7 @@ namespace cuBQL {
            entirely within that slab (iff lower_k <= a_k <= upper_k),
            or entirely outside */
         if (a_k > upper_k || a_k < lower_k) {
-          t0 = (float)PosInfTy(); t1 = -(float)PosInfTy();
+          t0 = PosInfTy(); t1 = NegInfTy;
         }
       } else {
         /* line segment is not parallel to the slab planes, so we can
