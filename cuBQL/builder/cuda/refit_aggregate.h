@@ -23,7 +23,7 @@ namespace cuBQL {
       >
     void refit_aggregate(BinaryBVH<T,D> bvh,
                          AggregateNodeData *d_aggregateNodeData,
-                         void (*aggregateFct)(bvh3f,
+                         void (*aggregateFct)(BinaryBVH<T,D>,
                                               AggregateNodeData[],
                                               int),
                          cudaStream_t       s =0,
@@ -35,7 +35,7 @@ namespace cuBQL {
     __global__
     void refit_aggregate_run(BinaryBVH<T,D> bvh,
                              AggregateNodeData *aggregateNodeData,
-                         void (*aggregateFct)(bvh3f,
+                         void (*aggregateFct)(BinaryBVH<T,D>,
                                               AggregateNodeData[],
                                               int),
                              uint32_t *refitData)
@@ -77,7 +77,7 @@ namespace cuBQL {
       typename AggregateNodeData>
     void refit_aggregate(BinaryBVH<T,D> bvh,
                          AggregateNodeData *d_aggregateNodeData,
-                         void (*aggregateFct)(bvh3f,
+                         void (*aggregateFct)(BinaryBVH<T,D>,
                                               AggregateNodeData[],
                                               int),
                          cudaStream_t       s,
