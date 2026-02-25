@@ -180,11 +180,11 @@ namespace cuBQL {
         }
 
         if (node.count != 0) {
-          for (int i=0;i<node.count;i++) 
-            processPrim(result,
-                        queryPrim,
-                        bvh.primIDs[node.offset+i],
-                        primitives);
+          for (int i=0;i<node.count;i++)
+            perPrimFct(result,
+                       queryPrim,
+                       bvh.primIDs[node.offset+i],
+                       primitives);
         }
         // ------------------------------------------------------------------
         // pop next un-traversed node from stack, discarding any nodes
