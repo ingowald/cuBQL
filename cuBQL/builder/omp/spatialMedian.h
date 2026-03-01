@@ -423,6 +423,15 @@ namespace cuBQL {
       cuBQL::omp::refit(bvh,boxes,ctx);
     }
     
+    template<typename T, int D>
+    void freeBVH(BinaryBVH<T,D>    &bvh,
+                 Context           *ctx)
+    {
+      ctx->free(bvh.primIDs);
+      ctx->free(bvh.nodes);
+      bvh.primIDs = 0;
+    }
+    
   }
   
   template<typename T, int D>
