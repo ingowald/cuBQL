@@ -11,6 +11,10 @@ namespace cuBQL {
     void refit(BinaryBVH<T,D>    &bvh,
                const box_t<T,D>  *boxes,
                Context *ctx);
+    
+    template<typename T, int D>
+    void freeBVH(BinaryBVH<T,D> &bvh,
+                 Context        *ctx);
   }
 }
 
