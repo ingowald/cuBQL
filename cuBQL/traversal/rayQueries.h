@@ -8,6 +8,8 @@
 #include "cuBQL/math/Ray.h"
 #include "cuBQL/traversal/fixedBoxQuery.h"
 
+#define CUBQL_DIST_STACK 1
+
 namespace cuBQL {
 
   // ******************************************************************
@@ -263,15 +265,17 @@ namespace cuBQL {
   template<typename Lambda, typename T, int D>
   inline __cubql_both
   void fixedRayQuery::forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                                  cuBQL::bvh_t<T, D> bvh,
-                                  cuBQL::ray3f ray,
+                                  cuBQL::bvh_t<T,D> bvh,
+                                  cuBQL::ray_t<T>   ray,
                                   bool dbg)
   {
+    using node_admin_t = typename bvh_t<T,D>::node_t::Admin;
+    enum { stackDepth = 64 };
     struct StackEntry {
       uint32_t idx;
     };
-    bvh3f::node_t::Admin traversalStack[64], *stackPtr = traversalStack;
-    bvh3f::node_t::Admin node = bvh.nodes[0].admin;
+    node_admin_t traversalStack[stackDepth], *stackPtr = traversalStack;
+    node_admin_t node = bvh.nodes[0].admin;
     // ------------------------------------------------------------------
     // traverse until there's nothing left to traverse:
     // ------------------------------------------------------------------
@@ -472,12 +476,18 @@ namespace cuBQL {
                                        ray_t ray,
                                        bool dbg)
   {
+    using scalar_t = T;
     using node_t = typename bvh_t<T, D>::node_t;
+    using node_admin_t = typename node_t::Admin;
     struct StackEntry {
       uint32_t idx;
     };
-    typename node_t::Admin traversalStack[64], *stackPtr = traversalStack;
-    typename node_t::Admin node = bvh.nodes[0].admin;
+    enum { stackDepth = 64 };
+    node_admin_t traversalStack[stackDepth], *stackPtr = traversalStack;
+    node_admin_t node = bvh.nodes[0].admin;
+#if CUBQL_DIST_STACK
+    T distStack[stackDepth], *distStackPtr = distStack;
+#endif
 
     if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
     if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
@@ -510,7 +520,12 @@ namespace cuBQL {
 
         if (o0) {
           if (o1) {
-            *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
+            *stackPtr++
+              = (node_t0 < node_t1) ? n1.admin : n0.admin;
+#if CUBQL_DIST_STACK
+            *distStackPtr++
+              = (node_t0 < node_t1) ? node_t1 : node_t0;
+#endif
             node = (node_t0 < node_t1) ? n0.admin : n1.admin;
           } else {
             node = n0.admin;
@@ -536,9 +551,20 @@ namespace cuBQL {
       // pop next un-traversed node from stack, discarding any nodes
       // that are more distant than whatever query radius we now have
       // ------------------------------------------------------------------
-      if (stackPtr == traversalStack)
-        return ray.tMax;
-      node = *--stackPtr;
+
+      while (true) {
+        if (stackPtr == traversalStack)
+          return ray.tMax;
+#if CUBQL_DIST_STACK
+        scalar_t tFromStack = *--distStackPtr;
+        if (tFromStack >= ray.tMax) {
+          --stackPtr;
+          continue;
+        }
+#endif
+        node = *--stackPtr;
+        break;
+      }
     }
   }
 
@@ -668,28 +694,38 @@ namespace cuBQL {
               bvh_t bvh,
               /*! REFERENCE to a ray, so 'enterBlas()' can modify it */
               ray_t &ray,
-              bool dbg)
+              bool _dbg)
   {
+#ifdef NDEBUG
+    const bool dbg = false;
+#else
+    bool dbg = _dbg;
+#endif
     using node_t = typename bvh_t::node_t;
     using T = typename bvh_t::scalar_t;
+    using scalar_t = typename bvh_t::scalar_t;
+    using vec3_t = typename cuBQL::vec_t<scalar_t,3>;
     struct StackEntry {
       uint32_t idx;
     };
-    enum { STACK_DEPTH=128 };
+    enum { STACK_DEPTH=64 };
     typename node_t::Admin
       traversalStack[STACK_DEPTH],
       *stackPtr = traversalStack,
       *blasStackBase = nullptr;
     typename node_t::Admin node = bvh.nodes[0].admin;
+#if CUBQL_DIST_STACK
+    T distStack[STACK_DEPTH], *distStackPtr = distStack;
+#endif
 
     node_t   *tlasSavedNodePtr = 0;
     uint32_t *tlasSavedPrimIDs = 0;
-    vec_t<T,3> saved_dir, saved_org;
+    vec3_t    saved_dir, saved_org;
     
-    if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
-    if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
-    if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
-    vec_t<T,3> rcp_dir = rcp(ray.direction);
+    if (ray.direction.x == (scalar_t)0) ray.direction.x = scalar_t(1e-20);
+    if (ray.direction.y == (scalar_t)0) ray.direction.y = scalar_t(1e-20);
+    if (ray.direction.z == (scalar_t)0) ray.direction.z = scalar_t(1e-20);
+    vec3_t rcp_dir = rcp(ray.direction);
       
     // ------------------------------------------------------------------
     // traverse until there's nothing left to traverse:
@@ -714,8 +750,10 @@ namespace cuBQL {
           // it's not a real leaf, so this must be a instance node
           tlasSavedNodePtr = bvh.nodes;
           tlasSavedPrimIDs = bvh.primIDs;
+#ifndef NDEBUG
           if (node.count != 1)
             printf("TWO-LEVEL BVH MUST BE BUILT WITH 1 PRIM PER LEAF!\n");
+#endif
           if (dbg)
             printf("inner-leaf primIDs %p ofs %i count %i\n",
                    bvh.primIDs,
@@ -732,11 +770,14 @@ namespace cuBQL {
           bvh_t blas;
           ray_t transformed_ray = ray;
           enterBlas(transformed_ray,blas,instID);
-          ray.origin = transformed_ray.origin;
+          ray.origin    = transformed_ray.origin;
           ray.direction = transformed_ray.direction;
-          if (ray.direction.x == (T)0) ray.direction.x = T(1e-20);
-          if (ray.direction.y == (T)0) ray.direction.y = T(1e-20);
-          if (ray.direction.z == (T)0) ray.direction.z = T(1e-20);
+          if (ray.direction.x == (scalar_t)0)
+            ray.direction.x = scalar_t(1e-20);
+          if (ray.direction.y == (scalar_t)0)
+            ray.direction.y = scalar_t(1e-20);
+          if (ray.direction.z == (scalar_t)0)
+            ray.direction.z = scalar_t(1e-20);
           rcp_dir = rcp(ray.direction);
           bvh.nodes     = blas.nodes;
           bvh.primIDs   = blas.primIDs;
@@ -745,14 +786,14 @@ namespace cuBQL {
           // now check if those blas root node is _also_ a leaf:
           if (node.count != 0)
             break;
-          if (dbg) printf("new node %i.%i\n",(int)node.offset,(int)node.count);
+          // if (dbg) printf("new node %i.%i\n",(int)node.offset,(int)node.count);
         }          
 
         uint32_t n0Idx = (uint32_t)node.offset+0;
         uint32_t n1Idx = (uint32_t)node.offset+1;
         node_t n0 = bvh.nodes[n0Idx];
         node_t n1 = bvh.nodes[n1Idx];
-        T node_t0 = T(0), node_t1 = T(0);
+        scalar_t node_t0 = scalar_t(0), node_t1 = scalar_t(0);
         bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
@@ -769,7 +810,12 @@ namespace cuBQL {
               return;
             }
             
-            *stackPtr++ = (node_t0 < node_t1) ? n1.admin : n0.admin;
+            *stackPtr++
+              = (node_t0 < node_t1) ? n1.admin : n0.admin;
+#if CUBQL_DIST_STACK
+            *distStackPtr++
+              = (node_t0 < node_t1) ? node_t1 : node_t0;
+#endif
             node = (node_t0 < node_t1) ? n0.admin : n1.admin;
           } else {
             node = n0.admin;
@@ -798,18 +844,28 @@ namespace cuBQL {
       // pop next un-traversed node from stack, discarding any nodes
       // that are more distant than whatever query radius we now have
       // ------------------------------------------------------------------
-      if (stackPtr == blasStackBase) {
-        leaveBlas();
-        ray.direction = saved_dir;
-        ray.origin    = saved_org;
-        rcp_dir = rcp(ray.direction);
-        blasStackBase = nullptr;
-        bvh.nodes   = tlasSavedNodePtr;
-        bvh.primIDs = tlasSavedPrimIDs;
+      while (true) {
+        if (stackPtr == blasStackBase) {
+          leaveBlas();
+          ray.direction = saved_dir;
+          ray.origin    = saved_org;
+          rcp_dir       = rcp(ray.direction);
+          blasStackBase = nullptr;
+          bvh.nodes     = tlasSavedNodePtr;
+          bvh.primIDs   = tlasSavedPrimIDs;
+        }
+        if (stackPtr == traversalStack)
+          return;// ray.tMax;
+#if CUBQL_DIST_STACK
+        scalar_t tFromStack = *--distStackPtr;
+        if (tFromStack >= ray.tMax) {
+          --stackPtr;
+          continue;
+        }
+#endif
+        node = *--stackPtr;
+        break;
       }
-      if (stackPtr == traversalStack)
-        return;// ray.tMax;
-      node = *--stackPtr;
     }
   }
   
