@@ -221,4 +221,8 @@ namespace cuBQL {
   using affine3f = AffineSpace3f;
   using affine2d = AffineSpace2d;
   using affine3d = AffineSpace3d;
+
+  template<typename L>
+  inline __cubql_both dbgout operator<<(dbgout o, const AffineSpaceT<L> &v)
+  { o << "Affine(" << v.l << "+" << v.p << ")"; return o; }
 } // ::cuBQL

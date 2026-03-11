@@ -174,7 +174,8 @@ namespace cuBQL {
 
   template<typename T>
   inline __cubql_both
-  bool rayIntersectsBox(ray_t<T> ray, box_t<T,3> box)
+  bool rayIntersectsBox(ray_t<T> ray, box_t<T,3> box// , bool dbg=false
+                        )
   {
     using vec3 = vec_t<T,3>;
     vec3 inv = rcp(ray.direction);
@@ -184,6 +185,8 @@ namespace cuBQL {
     vec3 fr = max(lo,hi);
     T tin  = max(ray.tMin,reduce_max(nr));
     T tout = min(ray.tMax,reduce_min(fr));
+    // if (dbg)
+    //   dout << "ray overlap " << tin << " " << tout << "\n";
     return tin <= tout;
   }
 
@@ -205,7 +208,7 @@ namespace cuBQL {
   template<typename T>
   inline __cubql_both
   bool rayIntersectsBox(T &ret_t0,
-                        ray_t<T> ray, vec_t<T,3> rcp_dir, box_t<T,3> box)
+                        ray_t<T> ray, vec_t<T,3> rcp_dir, box_t<T,3> box, bool dbg=false)
   {
     using vec3 = vec_t<T,3>;
     vec3 lo = (box.lower - ray.origin) * rcp_dir;
@@ -215,6 +218,13 @@ namespace cuBQL {
     T tin  = max(ray.tMin,reduce_max(nr));
     T tout = min(ray.tMax,reduce_min(fr));
     ret_t0 = tin;
+    // if (dbg) {
+    //   dout << "lo " << lo << "\n";
+    //   dout << "hi " << hi << "\n";
+    //   dout << "nr " << nr << "\n";
+    //   dout << "fr " << fr << "\n";
+    //   dout << "ray overlap " << tin << " " << tout << "\n";
+    // }
     return tin <= tout;
   }
 
@@ -296,8 +306,8 @@ namespace cuBQL {
         uint32_t n1Idx = (uint32_t)node.offset+1;
         bvh3f::node_t n0 = bvh.nodes[n0Idx];
         bvh3f::node_t n1 = bvh.nodes[n1Idx];
-        bool o0 = rayIntersectsBox(ray,n0.bounds);
-        bool o1 = rayIntersectsBox(ray,n1.bounds);
+        bool o0 = rayIntersectsBox(ray,n0.bounds,dbg);
+        bool o1 = rayIntersectsBox(ray,n1.bounds,dbg);
         if (o0) {
           if (o1) {
             *stackPtr++ = n1.admin;
@@ -739,7 +749,7 @@ namespace cuBQL {
       // at which we need to pop
       // ------------------------------------------------------------------
       while (true) {
-        if (dbg) printf("node %i.%i\n",(int)node.offset,(int)node.count);
+        // if (dbg) printf("node %i.%i\n",(int)node.offset,(int)node.count);
         if (node.count != 0) {
           // it's a boy! - seriously: this is not a inner node; so
           // we're either at a final leaf, or at an instance node
@@ -754,11 +764,11 @@ namespace cuBQL {
           if (node.count != 1)
             printf("TWO-LEVEL BVH MUST BE BUILT WITH 1 PRIM PER LEAF!\n");
 #endif
-          if (dbg)
-            printf("inner-leaf primIDs %p ofs %i count %i\n",
-                   bvh.primIDs,
-                   (int)node.offset,
-                   (int)node.count);
+          // if (dbg)
+          //   printf("inner-leaf primIDs %p ofs %i count %i\n",
+          //          bvh.primIDs,
+          //          (int)node.offset,
+          //          (int)node.count);
               
           int instID
             = bvh.primIDs
@@ -794,15 +804,14 @@ namespace cuBQL {
         node_t n0 = bvh.nodes[n0Idx];
         node_t n1 = bvh.nodes[n1Idx];
         scalar_t node_t0 = scalar_t(0), node_t1 = scalar_t(0);
-        bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
-        bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
+        bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds,dbg);
+        bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds,dbg);
 
         if (dbg) {
           dout << " node L " << n0.bounds << "\n";
           dout << " node R " << n1.bounds << "\n";
-          printf("children L hit %i dist %f R hit %i dist %f\n",
-                 int(o0),node_t0,
-                 int(o1),node_t1);
+          dout << "children L hit " << int(o0) << " dist " << node_t0
+               << " R hit " << int(o1) << " dist " << node_t1 << "\n";
         }
         if (o0) {
           if (o1) {
@@ -834,9 +843,9 @@ namespace cuBQL {
       if (node.count != 0 && blasStackBase != nullptr) {
         // we're at a valid leaf: call the lambda and see if that gave
         // us a new, closer cull radius
-        if (dbg)
-          printf("trav leaf-leaf primIDs %p offset %i count %i\n",
-                 bvh.primIDs,(int)node.offset,(int)node.count);
+        // if (dbg)
+        //   printf("trav leaf-leaf primIDs %p offset %i count %i\n",
+        //          bvh.primIDs,(int)node.offset,(int)node.count);
         ray.tMax
           = processLeaf(bvh.primIDs,(int)node.offset,(int)node.count);
       }
@@ -900,13 +909,13 @@ namespace cuBQL {
                     leaveBlas,
                     intersectPrim]
       (const uint32_t *primIDs, int offset, int count) {
-      if (dbg) printf("AT LEAF!, primIDs %p, count %i\n",bvh.primIDs,count);
+      // if (dbg) printf("AT LEAF!, primIDs %p, count %i\n",bvh.primIDs,count);
       for (int i=0;i<count;i++) { 
         int primIdx = offset+i;
         if (primIDs) primIdx = primIDs[primIdx];
         ray.tMax = min(ray.tMax,intersectPrim(primIdx));
       }
-      if (dbg) printf("LEAVING LEAF! t = %f\n",ray.tMax);
+      // if (dbg) printf("LEAVING LEAF! t = %f\n",ray.tMax);
       return ray.tMax;
     };
     shrinkingRayQuery::twoLevel::forEachLeaf
