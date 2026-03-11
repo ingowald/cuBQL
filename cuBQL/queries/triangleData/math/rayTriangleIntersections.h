@@ -12,13 +12,6 @@ namespace cuBQL {
   // *** INTERFACE ***
   // ========================================================================
   
-  // struct RayTriangleIntersection {
-  //   vec3f N;
-  //   float t,u,v;
-    
-  //   inline __cubql_both bool compute(Ray ray, Triangle tri);
-  // };
-
   template<typename T>
   struct RayTriangleIntersection_t {
     using vec3 = vec_t<T,3>;
@@ -47,13 +40,19 @@ namespace cuBQL {
     const vec3 v1(tri.b);
     const vec3 v2(tri.c);
 
+    if (dbg) {
+      dout << "-----------\ntriangle " << v0 << " " << v1 << " " << v2 << "\n";
+    }
+    
     const vec3 e1 = v1-v0;
     const vec3 e2 = v2-v0;
 
     N = cross(e1,e2);
     if (N == vec3(T(0)))
       return false;
-
+    
+    if (dbg)
+      printf("N %lf %lf %lf\n",N.x,N.y,N.z);
     if (abst(dot(ray.direction,N)) < T(1e-12)) return false;
     
     // P = o+td
@@ -63,6 +62,8 @@ namespace cuBQL {
     // t*dot(d,N) = -dot(o-v0,N)
     // t = -dot(o-v0,N)/dot(d,N)
     t = -dot(ray.origin-v0,N)/dot(ray.direction,N);
+    if (dbg)
+      printf("t %lf [ %lf %lf ]\n",t,ray.tMin,ray.tMax);
     if (t <= ray.tMin || t >= ray.tMax) return false;
     
     vec3 P = (ray.origin - v0) + t*ray.direction;

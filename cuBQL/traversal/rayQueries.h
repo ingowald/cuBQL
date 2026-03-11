@@ -202,7 +202,7 @@ namespace cuBQL {
 
   template<typename T>
   inline __cubql_both
-  bool rayIntersectsBox(float &ret_t0,
+  bool rayIntersectsBox(T &ret_t0,
                         ray_t<T> ray, vec_t<T,3> rcp_dir, box_t<T,3> box)
   {
     using vec3 = vec_t<T,3>;
@@ -393,7 +393,7 @@ namespace cuBQL {
                   if (!node.children[c].valid)
                       childOrder.clear(c);
                   else {
-                      float dist2;
+                      T dist2;
                       bool o = rayIntersectsBox(dist2, ray, rcp_dir, node.children[c].bounds);
                       if (!o)
                           childOrder.clear(c);
@@ -504,7 +504,7 @@ namespace cuBQL {
         uint32_t n1Idx = (uint32_t)node.offset+1;
         node_t n0 = bvh.nodes[n0Idx];
         node_t n1 = bvh.nodes[n1Idx];
-        float node_t0 = 0.f, node_t1 = 0.f;
+        T node_t0 = 0.f, node_t1 = 0.f;
         bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
@@ -582,7 +582,7 @@ namespace cuBQL {
                   if (!node.children[c].valid)
                       childOrder.clear(c);
                   else {
-                      float dist2;
+                      T dist2;
                       bool o = rayIntersectsBox(dist2, ray, rcp_dir, node.children[c].bounds);
                       if (!o)
                           childOrder.clear(c);
@@ -752,20 +752,20 @@ namespace cuBQL {
         uint32_t n1Idx = (uint32_t)node.offset+1;
         node_t n0 = bvh.nodes[n0Idx];
         node_t n1 = bvh.nodes[n1Idx];
-        float node_t0 = 0.f, node_t1 = 0.f;
+        T node_t0 = T(0), node_t1 = T(0);
         bool o0 = rayIntersectsBox(node_t0,ray,rcp_dir,n0.bounds);
         bool o1 = rayIntersectsBox(node_t1,ray,rcp_dir,n1.bounds);
 
         if (dbg) {
-          // dout << " node L " << n0.bounds << "\n";
-          // dout << " node R " << n1.bounds << "\n";
+          dout << " node L " << n0.bounds << "\n";
+          dout << " node R " << n1.bounds << "\n";
           printf("children L hit %i dist %f R hit %i dist %f\n",
                  int(o0),node_t0,
                  int(o1),node_t1);
         }
         if (o0) {
           if (o1) {
-            if (stackPtr-traversalStack >= STACK_DEPTH) {
+            if ((stackPtr-traversalStack) >= STACK_DEPTH) {
               return;
             }
             
