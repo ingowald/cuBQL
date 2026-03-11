@@ -23,25 +23,25 @@ namespace cuBQL {
     _terminate_ a traveral, but ordering child nodes is not required
     because ordering shouldn't matter */
   namespace fixedRayQuery {
-    template<typename Lambda, typename T, int D>
+    template<typename Lambda, typename T>
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::bvh_t<T, D> bvh,
-                     cuBQL::ray3f ray,
+                     cuBQL::bvh_t<T, 3> bvh,
+                     cuBQL::ray_t<T> ray,
                      bool dbg=false);
 
-    template<typename Lambda, typename T, int D, int W>
+    template<typename Lambda, typename T, int W>
     inline __cubql_both
     void forEachLeaf(const Lambda &lambdaToExecuteForEachCandidate,
-                     cuBQL::WideBVH<T, D, W> bvh,
-                     cuBQL::ray3f ray,
+                     cuBQL::WideBVH<T, 3, W> bvh,
+                     cuBQL::ray_t<T> ray,
                      bool dbg=false);
     
-    template<typename Lambda, typename bvh_t>
+    template<typename Lambda, typename T>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                     bvh_t bvh,
-                     cuBQL::ray3f ray,
+                     bvh_t<T,3> bvh,
+                     cuBQL::ray_t<T> ray,
                      bool dbg=false);
     
     /*! traverse BVH with given fixed-length, axis-aligned ray, and
@@ -86,31 +86,40 @@ namespace cuBQL {
     /*! single level BVH ray traversal, provided lambda covers what
       happens when a ray wants to intersect a given prim within that
       bvh */
-    template<typename Lambda, typename T, int D, typename ray_t>
+    template<typename Lambda, typename T>
     inline __cubql_both
     float forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                      bvh_t<T, D> bvh,
-                      ray_t ray,
+                      bvh_t<T, 3> bvh,
+                      ray_t<T> ray,
                       bool dbg=false);
 
     /*! single level BVH ray traversal, provided lambda covers what
       happens when a ray wants to intersect a given prim within that
       bvh */
-    template<typename Lambda, typename T, int D, int W, typename ray_t>
+    template<typename Lambda, typename T, int W>
     inline __cubql_both
     float forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                      WideBVH<T, D, W> bvh,
-                      ray_t ray,
+                      WideBVH<T, 3, W> bvh,
+                      ray_t<T> ray,
                       bool dbg=false);
     
     /*! single level BVH ray traversal, provided lambda covers what
       happens when a ray wants to intersect a given prim within that
       bvh */
-    template<typename Lambda, typename bvh_t, typename ray_t>
+    template<typename Lambda, typename T>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                     bvh_t bvh,
-                     ray_t &ray,
+                     BinaryBVH<T,3> bvh,
+                     ray_t<T> &ray,
+                     bool dbg=false);
+    /*! single level BVH ray traversal, provided lambda covers what
+      happens when a ray wants to intersect a given prim within that
+      bvh */
+    template<typename Lambda, typename T, int W>
+    inline __cubql_both
+    void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
+                     WideBVH<T,3,W> bvh,
+                     ray_t<T> &ray,
                      bool dbg=false);
     
     namespace twoLevel {
@@ -272,14 +281,15 @@ namespace cuBQL {
     forEachLeaf(leafCode,bvh,ray,dbg);
   }
 
-  template<typename Lambda, typename T, int D>
+  template<typename Lambda, typename T>
   inline __cubql_both
   void fixedRayQuery::forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                                  cuBQL::bvh_t<T,D> bvh,
+                                  cuBQL::BinaryBVH<T,3> bvh,
                                   cuBQL::ray_t<T>   ray,
                                   bool dbg)
   {
-    using node_admin_t = typename bvh_t<T,D>::node_t::Admin;
+    using node_t = typename BinaryBVH<T,3>::node_t;
+    using node_admin_t = typename node_t::Admin;
     enum { stackDepth = 64 };
     struct StackEntry {
       uint32_t idx;
@@ -304,10 +314,10 @@ namespace cuBQL {
 
         uint32_t n0Idx = (uint32_t)node.offset+0;
         uint32_t n1Idx = (uint32_t)node.offset+1;
-        bvh3f::node_t n0 = bvh.nodes[n0Idx];
-        bvh3f::node_t n1 = bvh.nodes[n1Idx];
-        bool o0 = rayIntersectsBox(ray,n0.bounds,dbg);
-        bool o1 = rayIntersectsBox(ray,n1.bounds,dbg);
+        node_t n0 = bvh.nodes[n0Idx];
+        node_t n1 = bvh.nodes[n1Idx];
+        bool o0 = rayIntersectsBox(ray,n0.bounds);
+        bool o1 = rayIntersectsBox(ray,n1.bounds);
         if (o0) {
           if (o1) {
             *stackPtr++ = n1.admin;
@@ -367,14 +377,14 @@ namespace cuBQL {
       }
   }
 
-  template<typename Lambda, typename T, int D, int W>
+  template<typename Lambda, typename T, int W>
   inline __cubql_both
   void fixedRayQuery::forEachLeaf(const Lambda& lambdaToCallOnEachLeaf,
-                                  cuBQL::WideBVH<T, D, W> bvh,
-                                  cuBQL::ray3f ray,
+                                  cuBQL::WideBVH<T, 3, W> bvh,
+                                  cuBQL::ray_t<T> ray,
                                   bool dbg)
   {
-      using node_t = typename WideBVH<T, D, W>::node_t;
+      using node_t = typename WideBVH<T, 3, W>::node_t;
 
       int traversalStack[64], * stackPtr = traversalStack;
       int nodeID = 0;
@@ -454,11 +464,11 @@ namespace cuBQL {
 
   /*! this query assumes lambads that return CUBQL_CONTINUE_TRAVERSAL
     or CUBQL_TERMINATE_TRAVERSAL */
-  template<typename Lambda, typename bvh_t>
+  template<typename Lambda, typename T>
   inline __cubql_both
   void fixedRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                                  bvh_t bvh,
-                                  cuBQL::ray3f ray,
+                                  bvh_t<T,3> bvh,
+                                  cuBQL::ray_t<T> ray,
                                   bool dbg)
   {
     /* the code we want to have executed for each leaf that may
@@ -479,15 +489,15 @@ namespace cuBQL {
     forEachLeaf(leafCode,bvh,ray,dbg);
   }
     
-  template<typename Lambda, typename T, int D, typename ray_t>
+  template<typename Lambda, typename T>
   inline __cubql_both
   float shrinkingRayQuery::forEachLeaf(const Lambda &lambdaToCallOnEachLeaf,
-                                       bvh_t<T, D> bvh,
-                                       ray_t ray,
+                                       BinaryBVH<T, 3> bvh,
+                                       ray_t<T> ray,
                                        bool dbg)
   {
     using scalar_t = T;
-    using node_t = typename bvh_t<T, D>::node_t;
+    using node_t = typename BinaryBVH<T, 3>::node_t;
     using node_admin_t = typename node_t::Admin;
     struct StackEntry {
       uint32_t idx;
@@ -578,14 +588,14 @@ namespace cuBQL {
     }
   }
 
-  template<typename Lambda, typename T, int D, int W, typename ray_t>
+  template<typename Lambda, typename T, int W>
   inline __cubql_both
   float shrinkingRayQuery::forEachLeaf(const Lambda& lambdaToCallOnEachLeaf,
-                                       WideBVH<T, D, W> bvh,
-                                       ray_t ray,
+                                       WideBVH<T, 3, W> bvh,
+                                       ray_t<T> ray,
                                        bool dbg)
   {
-      using node_t = typename WideBVH<T, D, W>::node_t;
+    using node_t = typename WideBVH<T, 3, W>::node_t;
 
       int traversalStack[64], * stackPtr = traversalStack;
       int nodeID = 0;
@@ -662,11 +672,11 @@ namespace cuBQL {
       return T(CUBQL_INF);
   }
 
-  template<typename Lambda, typename bvh_t, typename ray_t>
+  template<typename Lambda, typename T>
   inline __cubql_both
   void shrinkingRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                                      bvh_t bvh,
-                                      ray_t &ray,
+                                      bvh_t<T,3> bvh,
+                                      ray_t<T> &ray,
                                       bool dbg)
   {
     auto perLeaf = [dbg,bvh,&ray,lambdaToExecuteForEachCandidate]
@@ -695,15 +705,15 @@ namespace cuBQL {
   template<typename EnterBlasLambda,
            typename LeaveBlasLambda,
            typename ProcessLeafLambda,
-           typename bvh_t, typename ray_t>
+           typename T>
   inline __cubql_both
   void shrinkingRayQuery::twoLevel::
   forEachLeaf(const EnterBlasLambda   &enterBlas,
               const LeaveBlasLambda   &leaveBlas,
               const ProcessLeafLambda &processLeaf,
-              bvh_t bvh,
+              BinaryBVH<T,3> bvh,
               /*! REFERENCE to a ray, so 'enterBlas()' can modify it */
-              ray_t &ray,
+              ray_t<T> &ray,
               bool _dbg)
   {
 #ifdef NDEBUG
@@ -711,8 +721,8 @@ namespace cuBQL {
 #else
     bool dbg = _dbg;
 #endif
+    using bvh_t = BinaryBVH<T,3>;
     using node_t = typename bvh_t::node_t;
-    using T = typename bvh_t::scalar_t;
     using scalar_t = typename bvh_t::scalar_t;
     using vec3_t = typename cuBQL::vec_t<scalar_t,3>;
     struct StackEntry {
