@@ -35,7 +35,7 @@ jobs:
 
     steps:
 
-      - name: Checkout OWL
+      - name: Checkout cuBQL
         uses: actions/checkout@v5
         with:
           submodules: true

@@ -1,11 +1,17 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA
+# CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.16)
 
+set(CUBQL_VERSION_MAJOR 1)
+set(CUBQL_VERSION_MINOR 3)
+set(CUBQL_VERSION_PATCH 0)
+set(CUBQL_VERSION ${CUBQL_VERSION_MAJOR}.${CUBQL_VERSION_MINOR}.${CUBQL_VERSION_PATCH})
+
 cmake_policy(SET CMP0048 NEW)
 set(CMAKE_BUILD_TYPE_INIT "Release")
-project(cuBQL VERSION 1.2.0 LANGUAGES C CXX)
+project(cuBQL VERSION ${CUBQL_VERSION} LANGUAGES C CXX)
 
 if (CUBQL_OMP)
   set(CUBQL_DISABLE_CUDA ON)

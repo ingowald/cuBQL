@@ -49,7 +49,7 @@ jobs:
       visual_studio: "${{ matrix.visual-studio }}"
       build_dir: "build"
     steps:
-      - name: Checkout owl
+      - name: Checkout cuBQL
         uses: actions/checkout@v5
         with:
           submodules: true
