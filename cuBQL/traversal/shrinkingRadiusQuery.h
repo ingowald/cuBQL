@@ -355,9 +355,9 @@ namespace cuBQL {
     template<int N>
     inline __cubql_both void sort(ChildOrder<N> &children)
     {
-#pragma unroll
+// #pragma unroll
       for (int i=N-1;i>0;--i) {
-#pragma unroll
+// #pragma unroll
         for (int j=0;j<i;j++) {
           uint64_t c0 = children.v[j+0];
           uint64_t c1 = children.v[j+1];
@@ -411,7 +411,7 @@ namespace cuBQL {
             break;
           
           const typename WideBVH<float,3,W>::Node &node = bvh.nodes[nodeID];
-#pragma unroll
+// #pragma unroll
           for (int c=0;c<W;c++) {
             const auto child = node.children[c];
             if (!node.children[c].valid)
@@ -430,8 +430,8 @@ namespace cuBQL {
             }
           }
           sort(childOrder);
-#pragma unroll
-          for (int c=W-1;c>0;--c) {
+// #pragma unroll
+         for (int c=W-1;c>0;--c) {
             uint64_t coc = childOrder.v[c];
             if (coc != uint64_t(-1)) {
               *stackPtr++ = coc;

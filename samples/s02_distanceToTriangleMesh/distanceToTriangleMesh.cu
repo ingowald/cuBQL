@@ -21,6 +21,7 @@
 #define CUBQL_GPU_BUILDER_IMPLEMENTATION 1
 #define CUBQL_TRIANGLE_CPAT_IMPLEMENTATION 1
 #include "cuBQL/bvh.h"
+#include "cuBQL/queries/triangleData/math/pointToTriangleDistance.h"
 #include "cuBQL/queries/triangleData/closestPointOnAnyTriangle.h"
 #include "samples/common/loadOBJ.h"
 

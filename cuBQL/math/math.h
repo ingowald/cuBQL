@@ -22,7 +22,8 @@ namespace cuBQL {
 #endif
 
 #ifdef __CUDA_ARCH__
-# define CUBQL_INF ::cuda::std::numeric_limits<float>::infinity()
+# define CUBQL_INF CUDART_INF_F
+// # define CUBQL_INF ::cuda::std::numeric_limits<float>::infinity()
 #else
 # define CUBQL_INF std::numeric_limits<float>::infinity()
 #endif
