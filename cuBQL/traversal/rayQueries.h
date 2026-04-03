@@ -37,10 +37,10 @@ namespace cuBQL {
                      cuBQL::ray_t<T> ray,
                      bool dbg=false);
     
-    template<typename Lambda, typename T>
+    template<typename Lambda, typename bvh_t, typename T>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                     BinaryBVH<T,3> bvh,
+                     bvh_t bvh,
                      cuBQL::ray_t<T> ray,
                      bool dbg=false);
     
@@ -106,19 +106,10 @@ namespace cuBQL {
     /*! single level BVH ray traversal, provided lambda covers what
       happens when a ray wants to intersect a given prim within that
       bvh */
-    template<typename Lambda, typename T>
+    template<typename Lambda, typename bvh_t, typename T>
     inline __cubql_both
     void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                     BinaryBVH<T,3> bvh,
-                     ray_t<T> &ray,
-                     bool dbg=false);
-    /*! single level BVH ray traversal, provided lambda covers what
-      happens when a ray wants to intersect a given prim within that
-      bvh */
-    template<typename Lambda, typename T, int W>
-    inline __cubql_both
-    void forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                     WideBVH<T,3,W> bvh,
+                     bvh_t bvh,
                      ray_t<T> &ray,
                      bool dbg=false);
     
@@ -464,10 +455,10 @@ namespace cuBQL {
 
   /*! this query assumes lambads that return CUBQL_CONTINUE_TRAVERSAL
     or CUBQL_TERMINATE_TRAVERSAL */
-  template<typename Lambda, typename T>
+  template<typename Lambda, typename bvh_t, typename T>
   inline __cubql_both
   void fixedRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                                  BinaryBVH<T,3> bvh,
+                                  bvh_t bvh,
                                   cuBQL::ray_t<T> ray,
                                   bool dbg)
   {
@@ -672,10 +663,10 @@ namespace cuBQL {
       return T(CUBQL_INF);
   }
 
-  template<typename Lambda, typename T>
+  template<typename Lambda, typename bvh_t, typename T>
   inline __cubql_both
   void shrinkingRayQuery::forEachPrim(const Lambda &lambdaToExecuteForEachCandidate,
-                                      BinaryBVH<T,3> bvh,
+                                      bvh_t bvh,
                                       ray_t<T> &ray,
                                       bool dbg)
   {
@@ -687,8 +678,6 @@ namespace cuBQL {
     };
     shrinkingRayQuery::forEachLeaf(perLeaf,bvh,ray,dbg);
   }
-
-
 
   /*! two-level BVH ray traversal, where the BVH is made up of a
     "TLAS" (top-level acceleration structure) that itself contains
