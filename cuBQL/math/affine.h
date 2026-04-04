@@ -183,7 +183,7 @@ namespace cuBQL {
 
   template<typename T>
   box_t<T,3> xfmBox(const AffineSpaceT<LinearSpace3<vec_t<T,3>>> &xfm,
-                    const box_t<T,3> &box)
+                    const box_t<T,3> &in)
   {
     box_t<T,3> out;
     if (in.empty()) return out;
