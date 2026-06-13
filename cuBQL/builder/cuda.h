@@ -45,6 +45,7 @@ namespace cuBQL {
     DeviceMemoryResource()
     {}
     void malloc(void** ptr, size_t size, cudaStream_t s) override {
+      CUBQL_CUDA_CALL(StreamSynchronize(s));
       CUBQL_CUDA_CALL(Malloc(ptr, size));
     }
     void free(void* ptr, cudaStream_t s) override
@@ -81,6 +82,7 @@ namespace cuBQL {
       } );
     }
     void malloc(void** ptr, size_t size, cudaStream_t s) override {
+      PING;
 #ifndef NDEBUG
       if (s_numDevices > 1 && s == 0)
         std::cerr << "@cuBQL: warning; async memory allocator used with default stream."

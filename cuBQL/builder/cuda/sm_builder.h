@@ -25,13 +25,14 @@ namespace cuBQL {
     };
 
     template<typename T, int D>
-    struct CUBQL_ALIGN(16) TempNode {
+    struct// CUBQL_ALIGN(16)
+      TempNode {
       using box_t = cuBQL::box_t<T,D>;
-      union {
+      // union {
         struct {
-          AtomicBox<box_t> centBounds;
           uint32_t         count;
           uint32_t         unused;
+          AtomicBox<box_t> centBounds;
         } openBranch;
         struct {
           uint32_t offset;
@@ -42,9 +43,8 @@ namespace cuBQL {
         struct {
           uint32_t offset;
           uint32_t count;
-          uint32_t unused[2];
         } doneNode;
-      };
+      // };
     };
     
     template<typename T, int D>
@@ -53,11 +53,15 @@ namespace cuBQL {
                    NodeState       *nodeStates,
                    TempNode<T,D> *nodes)
     {
+      if (threadIdx.x > 0) return;
+      
       buildState->numNodes = 2;
       
       nodeStates[0]             = OPEN_BRANCH;
       nodes[0].openBranch.count = 0;
       nodes[0].openBranch.centBounds.set_empty();
+      if (nodes[0].openBranch.centBounds.upper[0] > 0)
+        nodes[0].openBranch.centBounds.upper[0] = 8888;
 
       nodeStates[1]            = DONE_NODE;
       nodes[1].doneNode.offset = 0;
@@ -82,7 +86,9 @@ namespace cuBQL {
         me.done   = false;
         // this could be made faster by block-reducing ...
         atomicAdd(&nodes[0].openBranch.count,1);
-        atomic_grow(nodes[0].openBranch.centBounds,box.center());//centerOf(box));
+        auto ctr = box.center();
+        atomic_grow(nodes[0].openBranch.centBounds,ctr);//centerOf(box));
+        // atomic_grow(nodes[0].openBranch.centBounds,centerOf(box));
       } else {
         me.nodeID = (uint32_t)-1;
         me.done   = true;
@@ -97,7 +103,7 @@ namespace cuBQL {
                       uint32_t       numNodes,
                       BuildConfig    buildConfig)
     {
-#if 1
+#if 0
       __shared__ int l_newNodeOfs;
       if (threadIdx.x == 0)
         l_newNodeOfs = 0;
@@ -208,13 +214,14 @@ namespace cuBQL {
       
       auto in = nodes[nodeID].openBranch;
       if (in.count <= buildConfig.makeLeafThreshold) {
-        auto &done  = nodes[nodeID].doneNode;
+        auto done  = nodes[nodeID].doneNode;
         done.count  = in.count;
         // set this to max-value, so the prims can later do atomicMin
         // with their position ion the leaf list; this value is
         // greater than any prim position.
         done.offset = (uint32_t)-1;
         nodeState   = DONE_NODE;
+        nodes[nodeID].doneNode = done;
       } else {
         float widestWidth = 0.f;
         int   widestDim   = -1;
@@ -235,7 +242,8 @@ namespace cuBQL {
           widestCtr = ctr;
         }
       
-        auto &open = nodes[nodeID].openNode;
+        // auto &open = nodes[nodeID].openNode;
+        auto open = nodes[nodeID].openNode;
         if (widestDim >= 0) {
           open.pos = widestCtr;
         }
@@ -249,12 +257,15 @@ namespace cuBQL {
 #pragma unroll
         for (int side=0;side<2;side++) {
           const int childID = open.offset+side;
-          auto &child = nodes[childID].openBranch;
-          child.centBounds.set_empty();
-          child.count         = 0;
+          TempNode<T,D> child;
+          // auto &child = nodes[childID].openBranch;
+          child.openBranch.centBounds.set_empty();
+          child.openBranch.count         = 0;
           nodeStates[childID] = OPEN_BRANCH;
+          nodes[childID] = child;
         }
         nodeState = OPEN_NODE;
+        nodes[nodeID].openNode = open;
       }
 #endif
     }
@@ -420,6 +431,8 @@ namespace cuBQL {
                GpuMemoryResource &memResource)
     {
       assert(sizeof(PrimState) == sizeof(uint64_t));
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
       
       // ==================================================================
       // do build on temp nodes
@@ -432,13 +445,168 @@ namespace cuBQL {
       _ALLOC(nodeStates,2*numPrims,s,memResource);
       _ALLOC(primStates,numPrims,s,memResource);
       _ALLOC(buildState,1,s,memResource);
-      initState<<<1,1,0,s>>>(buildState,
-                             nodeStates,
-                             tempNodes);
-      initPrims<<<divRoundUp(numPrims,1024),1024,0,s>>>
+
+#if 1
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
+        {
+          int numNodes = 1;
+          std::cout << "*********** INPUT BOUNDS ***********" << std::endl;
+          std::vector<box3f> h_bbs(numPrims);
+          CUBQL_CUDA_CALL(Memcpy(h_bbs.data(),boxes,
+                                 numPrims*sizeof(*boxes),cudaMemcpyDefault));
+          for (int i=0;i<numPrims;i++) {
+            auto &bb= h_bbs[i];
+            if (bb.upper.y > 1000000)
+              PRINT(bb);
+          }
+        }
+#endif
+      
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
+        initState<<<1,128,0,s>>>(buildState,
+                                 nodeStates,
+                                 tempNodes);
+        
+
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
+#if 0
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
+        {
+          int numNodes = 1;
+          std::cout << "*********** AFTER INITSTATE ***********" << std::endl;
+          std::vector<NodeState> h_nodeStates(numNodes);
+          std::vector<TempNode<T,D>> h_tempNodes(numNodes);
+          CUBQL_CUDA_CALL(Memcpy(h_nodeStates.data(),nodeStates,
+                                 numNodes*sizeof(*nodeStates),cudaMemcpyDefault));
+CUBQL_CUDA_CALL(Memcpy(h_tempNodes.data(),tempNodes,
+                       numNodes*sizeof(*tempNodes),cudaMemcpyDefault));
+          for (int i=0;i<numNodes;i++) {
+            int state = nodeStates[i];
+            // printf("nodestae %i = %i\n",i,state);
+            auto &n = tempNodes[i];
+            switch(state) {
+            case OPEN_NODE:
+              break;
+            case OPEN_BRANCH: {
+              auto _decode = [](int32_t bits) -> float {
+                const int32_t sign = 0x80000000;
+                if (bits & sign) bits ^= 0x7fffffff;
+                float f;
+                memcpy(&f,&bits,4);
+                return f;
+              };
+              auto _decode2 = [](int32_t bits) -> float {
+                const int32_t sign = 0x80000000;
+                if (bits & sign) bits ^= 0x7fffffff;
+                return (const float &)bits;
+              };
+              auto _encode = [](float f) -> int32_t {
+                int *ptr = (int *)&f;
+                const int32_t sign = 0x80000000U;
+                // int32_t bits = __float_as_int(f);
+                int32_t bits = *ptr;//(const int &)f;
+                if (bits & sign) bits ^= 0x7fffffff;
+                return bits;
+              };
+              auto &bb = n.openBranch.centBounds;
+              float tf = +1e8f;
+              auto etf = _encode(tf);
+              auto detf = _decode(etf);
+              auto detf2 = _decode2(etf);
+              printf(" in f %f enc %i/0x%x dec %f / %f\n",
+                     tf,etf,etf,detf,detf2);
+              printf(" [%i] OPENBRANCH cnt %i bb %i %i %i: %i %i %i -> %f %f %f : %f %f %f\n",
+                     i,
+                     n.openBranch.count,
+                     (bb.lower[0]),
+                     (bb.lower[1]),
+                     (bb.lower[2]),
+                     (bb.upper[0]),
+                     (bb.upper[1]),
+                     (bb.upper[2]),
+                     _decode(bb.lower[0]),
+                     _decode(bb.lower[1]),
+                     _decode(bb.lower[2]),
+                     _decode(bb.upper[0]),
+                     _decode(bb.upper[1]),
+                     _decode(bb.upper[2]));
+            } break;
+            case DONE_NODE:
+              break;
+            }
+          }
+        }
+#endif
+
+      
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
+      initPrims<<<divRoundUp(numPrims,128),128,0,s>>>
         (tempNodes,
          primStates,boxes,numPrims);
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
 
+
+#if 0
+      CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+      CUBQL_CUDA_SYNC_CHECK();
+        {
+          int numNodes = 1;
+          std::cout << "*********** INITIAL BOUNDS ***********" << std::endl;
+          std::vector<NodeState> h_nodeStates(numNodes);
+          std::vector<TempNode<T,D>> h_tempNodes(numNodes);
+          CUBQL_CUDA_CALL(Memcpy(h_nodeStates.data(),nodeStates,
+                                 numNodes*sizeof(*nodeStates),cudaMemcpyDefault));
+CUBQL_CUDA_CALL(Memcpy(h_tempNodes.data(),tempNodes,
+                       numNodes*sizeof(*tempNodes),cudaMemcpyDefault));
+          for (int i=0;i<numNodes;i++) {
+            int state = nodeStates[i];
+            // printf("nodestae %i = %i\n",i,state);
+            auto &n = tempNodes[i];
+            switch(state) {
+            case OPEN_NODE:
+              break;
+            case OPEN_BRANCH: {
+              auto decode = [](int32_t bits) {
+                const int32_t sign = 0x80000000;
+                if (bits & sign) bits ^= 0x7fffffff;
+                float f;
+                memcpy(&f,&bits,4);
+                return f;
+                // const int32_t sign = 0x80000000;
+                // if (bits & sign) bits ^= 0x7fffffff;
+                // return (const float &)bits;
+              };
+              auto &bb = n.openBranch.centBounds;
+              printf(" [%i] OPENBRANCH cnt %i bb %i %i %i: %i %i %i -> %f %f %f : %f %f %f\n",
+                     i,
+                     n.openBranch.count,
+                     (bb.lower[0]),
+                     (bb.lower[1]),
+                     (bb.lower[2]),
+                     (bb.upper[0]),
+                     (bb.upper[1]),
+                     (bb.upper[2]),
+                     decode(bb.lower[0]),
+                     decode(bb.lower[1]),
+                     decode(bb.lower[2]),
+                     decode(bb.upper[0]),
+                     decode(bb.upper[1]),
+                     decode(bb.upper[2]));
+            } break;
+            case DONE_NODE:
+              break;
+            }
+          }
+        }
+#endif
+
+      
       int numDone = 0;
       int numNodes;
 
@@ -447,60 +615,168 @@ namespace cuBQL {
       CUBQL_CUDA_CALL(EventCreate(&stateDownloadedEvent));
       
       
-#if CUBQL_PROFILE
-      int pass = 0;
-      static Profile t_writeNodes;
-      static Profile t_writePrims;
-      static Profile t_sortPrims;
-      static Profile t_nodePass[100];
-      static Profile t_primPass[100];
-      if (t_writeNodes.name == "") {
-        t_writeNodes.setName("writeNodes");
-        t_writePrims.setName("writePrims");
-        t_sortPrims.setName("sortPrims");
-        for (int i=0;i<100;i++) {
-          t_nodePass[i].setName("nodePass",i);
-          t_primPass[i].setName("primPass",i);
-        }
-      }
-#endif
+// #if CUBQL_PROFILE
+//       int pass = 0;
+//       static Profile t_writeNodes;
+//       static Profile t_writePrims;
+//       static Profile t_sortPrims;
+//       static Profile t_nodePass[100];
+//       static Profile t_primPass[100];
+//       if (t_writeNodes.name == "") {
+//         t_writeNodes.setName("writeNodes");
+//         t_writePrims.setName("writePrims");
+//         t_sortPrims.setName("sortPrims");
+//         for (int i=0;i<100;i++) {
+//           t_nodePass[i].setName("nodePass",i);
+//           t_primPass[i].setName("primPass",i);
+//         }
+//       }
+// #endif
+      PING;
       while (true) {
+        PING;
+        PRINT(numDone);
+        int pre_numNodes = numNodes;
         CUBQL_CUDA_CALL(MemcpyAsync(&numNodes,&buildState->numNodes,
                                     sizeof(numNodes),cudaMemcpyDeviceToHost,s));
-        if (numNodes == numDone)
-          break;
         CUBQL_CUDA_CALL(EventRecord(stateDownloadedEvent,s));
         CUBQL_CUDA_CALL(EventSynchronize(stateDownloadedEvent));
-#if CUBQL_PROFILE
-        t_nodePass[pass].sync_start();
+        PRINT(numNodes);
+        CUBQL_CUDA_SYNC_CHECK();
+        CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+        if (numNodes == numDone)
+          break;
+        PRINT(numNodes-numDone);
+        bool dbg = (numNodes-numDone) == 8098;
+// #if CUBQL_PROFILE
+//         t_nodePass[pass].sync_start();
+// #endif
+        CUBQL_CUDA_SYNC_CHECK();
+        CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+
+#if 0
+        {
+          std::cout << "*********** PRE SELECT ***********" << std::endl;
+          std::vector<NodeState> h_nodeStates(numNodes);
+          std::vector<TempNode<T,D>> h_tempNodes(numNodes);
+          CUBQL_CUDA_CALL(Memcpy(h_nodeStates.data(),nodeStates,
+                                 numNodes*sizeof(*nodeStates),cudaMemcpyDefault));
+          CUBQL_CUDA_CALL(Memcpy(h_tempNodes.data(),tempNodes,
+                                 numNodes*sizeof(*tempNodes),cudaMemcpyDefault));
+          for (int i=0;i<numNodes;i++) {
+            int state = nodeStates[i];
+            // printf("nodestae %i = %i\n",i,state);
+            auto &n = tempNodes[i];
+            switch(state) {
+            case OPEN_NODE:
+              break;
+            case OPEN_BRANCH: {
+              auto decode = [](int32_t bits) {
+                const int32_t sign = 0x80000000;
+                if (bits & sign) bits ^= 0x7fffffff;
+                float f;
+                memcpy(&f,&bits,4);
+                return f;
+              };
+              auto &bb = n.openBranch.centBounds;
+              printf(" [%i] OPENBRANCH cnt %i bb %f %f %f : %f %f %f\n",
+                     i,
+                     n.openBranch.count,
+                     decode(bb.lower[0]),
+                     decode(bb.lower[1]),
+                     decode(bb.lower[2]),
+                     decode(bb.upper[0]),
+                     decode(bb.upper[1]),
+                     decode(bb.upper[2]));
+            } break;
+            case DONE_NODE:
+              break;
+            }
+          }
+        }
 #endif
+          
         selectSplits<<<divRoundUp(numNodes,1024),1024,0,s>>>
           (buildState,
            nodeStates,tempNodes,numNodes,
            buildConfig);
-#if CUBQL_PROFILE
-        t_nodePass[pass].sync_stop();
-        t_primPass[pass].sync_start();
+        CUBQL_CUDA_SYNC_CHECK();
+        CUBQL_CUDA_SYNC_CHECK_STREAM(s);
+
+#if 0
+        {
+        std::vector<NodeState> h_nodeStates(numNodes);
+        std::vector<TempNode<T,D>> h_tempNodes(numNodes);
+CUBQL_CUDA_CALL(Memcpy(h_nodeStates.data(),nodeStates,
+                       numNodes*sizeof(*nodeStates),cudaMemcpyDefault));
+CUBQL_CUDA_CALL(Memcpy(h_tempNodes.data(),tempNodes,
+                       numNodes*sizeof(*tempNodes),cudaMemcpyDefault));
+        for (int i=0;i<numNodes;i++) {
+          int state = nodeStates[i];
+          // printf("nodestae %i = %i\n",i,state);
+          auto &n = tempNodes[i];
+          switch(state) {
+          case OPEN_NODE:
+            printf(" [%i] OPENNODE offset %i dim %i pos %f\n",
+                   i,
+                   n.openNode.offset,
+                   n.openNode.dim,
+                   n.openNode.pos);
+            break;
+          case OPEN_BRANCH:
+            break;
+          case DONE_NODE:
+            break;
+          }
+        //   union {
+        // struct {
+        //   AtomicBox<box_t> centBounds;
+        //   uint32_t         count;
+        //   uint32_t         unused;
+        // } openBranch;
+        // struct {
+        //   uint32_t offset;
+        //   int      dim;
+        //   uint32_t tieBreaker;
+        //   float    pos;
+        // } openNode;
+        // struct {
+        //   uint32_t offset;
+        //   uint32_t count;
+        //   uint32_t unused[2];
+        // } doneNode;
+        }
+        }
 #endif
+        
+// #if CUBQL_PROFILE
+//         t_nodePass[pass].sync_stop();
+//         t_primPass[pass].sync_start();
+// #endif
+        
         numDone = numNodes;
 
 // #if 1
-        if (sizeof(T)*D <= sizeof(float3)) {
+        if (0 && sizeof(T)*D <= sizeof(float3)) {
           updatePrims_shm<<<divRoundUp(numPrims,512),512,0,s>>>
             (nodeStates,tempNodes,
              primStates,boxes,numPrims,numDone);
         } else 
 // #else
-        updatePrims<<<divRoundUp(numPrims,1024),1024,0,s>>>
+        updatePrims<<<divRoundUp(numPrims,128),128,0,s>>>
           (nodeStates,tempNodes,
            primStates,boxes,numPrims);
 // #endif
+
+        CUBQL_CUDA_SYNC_CHECK();
+        CUBQL_CUDA_SYNC_CHECK_STREAM(s);
         
-#if CUBQL_PROFILE
-        t_primPass[pass].sync_stop();
-        ++ pass;
-#endif
+// #if CUBQL_PROFILE
+//         t_primPass[pass].sync_stop();
+//         ++ pass;
+// #endif
       }
+      PING;
       CUBQL_CUDA_CALL(EventDestroy(stateDownloadedEvent));
       // ==================================================================
       // sort {item,nodeID} list
@@ -510,9 +786,10 @@ namespace cuBQL {
       uint8_t   *d_temp_storage     = NULL;
       size_t     temp_storage_bytes = 0;
       PrimState *sortedPrimStates   = 0;
-#if CUBQL_PROFILE
-      t_sortPrims.sync_start();
-#endif
+// #if CUBQL_PROFILE
+//       t_sortPrims.sync_start();
+// #endif
+      PING;
       _ALLOC(sortedPrimStates,numPrims,s,memResource);
       auto rc =
         cub::DeviceRadixSort::SortKeys((void*&)d_temp_storage, temp_storage_bytes,
@@ -527,23 +804,25 @@ namespace cuBQL {
                                        numPrims,32,64,s);
       rc = rc;
       _FREE(d_temp_storage,s,memResource);
-#if CUBQL_PROFILE
-      t_sortPrims.sync_stop();
-      t_writePrims.sync_start();
-#endif
+// #if CUBQL_PROFILE
+//       t_sortPrims.sync_stop();
+//       t_writePrims.sync_start();
+// #endif
       // ==================================================================
       // allocate and write BVH item list, and write offsets of leaf nodes
       // ==================================================================
 
+      PING;
       bvh.numPrims = numPrims;
       _ALLOC(bvh.primIDs,numPrims,s,memResource);
       writePrimsAndLeafOffsets<<<divRoundUp(numPrims,1024),1024,0,s>>>
         (tempNodes,bvh.primIDs,sortedPrimStates,numPrims);
-#if CUBQL_PROFILE
-      t_writePrims.sync_stop();
-      t_writeNodes.sync_start();
-#endif
+// #if CUBQL_PROFILE
+//       t_writePrims.sync_stop();
+//       t_writeNodes.sync_start();
+// #endif
 
+      PING;
       // ==================================================================
       // allocate and write final nodes
       // ==================================================================
@@ -551,14 +830,15 @@ namespace cuBQL {
       _ALLOC(bvh.nodes,numNodes,s,memResource);
       writeNodes<<<divRoundUp(numNodes,1024),1024,0,s>>>
         (bvh.nodes,tempNodes,numNodes);
-#if CUBQL_PROFILE
-      t_writeNodes.sync_stop();
-#endif
+// #if CUBQL_PROFILE
+//       t_writeNodes.sync_stop();
+// #endif
       _FREE(sortedPrimStates,s,memResource);
       _FREE(tempNodes,s,memResource);
       _FREE(nodeStates,s,memResource);
       _FREE(primStates,s,memResource);
       _FREE(buildState,s,memResource);
+      PING;
     }
 
   } // ::cuBQL::gpuBuilder_impl

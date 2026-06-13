@@ -66,6 +66,7 @@ namespace cuBQL {
                   uint32_t              numPrims,
                   BuildConfig           buildConfig)
   {
+    PING;
     /*! right now, only have a slow spatial median builder */
     cpu::spatialMedian(bvh,boxes,numPrims,buildConfig);
   }

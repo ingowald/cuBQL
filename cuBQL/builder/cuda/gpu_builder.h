@@ -52,7 +52,9 @@ namespace cuBQL {
         buildConfig.makeLeafThreshold = 1;
       gpuBuilder_impl::build(bvh,boxes,numBoxes,buildConfig,s,memResource);
     }
+    PING;
     cuBQL::cuda::refit(bvh,boxes,s,memResource);
+    PING;
   }
 
   namespace cuda {

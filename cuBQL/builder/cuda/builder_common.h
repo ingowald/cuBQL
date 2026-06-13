@@ -23,7 +23,7 @@ namespace cub {
 namespace cuBQL {
   namespace gpuBuilder_impl {
 
-    inline __device__ void atomic_min(int32_t *v, int32_t vv)
+    inline __device__ void atomic_min(volatile int32_t *v, int32_t vv)
     { atomicMin((int *)v,(int)vv); }
     inline __device__ void atomic_min(int64_t *v, int64_t vv)
     { atomicMin((long long *)v,(long long)vv); }
@@ -32,7 +32,7 @@ namespace cuBQL {
     inline __device__ void atomic_min(uint64_t *v, uint64_t vv)
     { atomicMin((unsigned long long *)v,(unsigned long long)vv); }
 
-    inline __device__ void atomic_max(int32_t *v, int32_t vv)
+    inline __device__ void atomic_max(volatile int32_t *v, int32_t vv)
     { atomicMax((int *)v,(int)vv); }
     inline __device__ void atomic_max(int64_t *v, int64_t vv)
     { atomicMax((long long *)v,(long long)vv); }
@@ -81,72 +81,86 @@ namespace cuBQL {
 
     template<typename T> struct int_type_of;
     template<> struct int_type_of<float> { typedef int32_t type; };
-    template<> struct int_type_of<double> { typedef int64_t type; };
-    template<> struct int_type_of<int32_t> { typedef int32_t type; };
-    template<> struct int_type_of<int64_t> { typedef int64_t type; };
-    template<> struct int_type_of<uint32_t> { typedef uint32_t type; };
-    template<> struct int_type_of<uint64_t> { typedef uint64_t type; };
+    // template<> struct int_type_of<double> { typedef int64_t type; };
+    // template<> struct int_type_of<int32_t> { typedef int32_t type; };
+    // template<> struct int_type_of<int64_t> { typedef int64_t type; };
+    // template<> struct int_type_of<uint32_t> { typedef uint32_t type; };
+    // template<> struct int_type_of<uint64_t> { typedef uint64_t type; };
 
-    template<typename T> inline __device__
-    typename int_type_of<T>::type encode(T v);
+    // template<typename T> inline __device__
+    // typename int_type_of<T>::type encode(T v);
     
-    template<> inline __device__
-    int32_t encode(float f)
+    // template<>
+    inline __device__
+    int32_t encode(const float &f)
     {
-      const int32_t sign = 0x80000000;
-      int32_t bits = __float_as_int(f);
+      // int *ptr = (int *)&f;
+      
+      const int32_t sign = 0x80000000U;
+      // int32_t bits = __float_as_int(f);
+      int32_t bits;// = *ptr;//(const int &)f;
+      memcpy(&bits,&f,4);
       if (bits & sign) bits ^= 0x7fffffff;
       return bits;
     }
-    template<> inline __device__
-    int64_t encode(double f)
-    {
-      const int64_t sign = 0x8000000000000000LL;
-      int64_t bits = __double_as_longlong(f);
-      if (bits & sign) bits ^= 0x7fffffffffffffffLL;
-      return bits;
-    }
-    template<> inline __device__
-    int32_t encode(int32_t bits)
-    {
-      return bits;
-    }
-    template<> inline __device__
-    int64_t encode(int64_t bits)
-    {
-      return bits;
-    }
+    // template<> inline __device__
+    // int64_t encode(double f)
+    // {
+    //   const int64_t sign = 0x8000000000000000LL;
+    //   int64_t bits = __double_as_longlong(f);
+    //   if (bits & sign) bits ^= 0x7fffffffffffffffLL;
+    //   return bits;
+    // }
+    // template<> inline __device__
+    // int32_t encode(int32_t bits)
+    // {
+    //   return bits;
+    // }
+    // template<> inline __device__
+    // int64_t encode(int64_t bits)
+    // {
+    //   return bits;
+    // }
 
     template<typename T> inline __device__
     T decode(int32_t v);
-    template<typename T> inline __device__
-    T decode(uint32_t v);
-    template<typename T> inline __device__
-    T decode(int64_t v);
-    template<typename T> inline __device__
-    T decode(uint64_t v);
+    // template<typename T> inline __device__
+    // T decode(uint32_t v);
+    // template<typename T> inline __device__
+    // T decode(int64_t v);
+    // template<typename T> inline __device__
+    // T decode(uint64_t v);
 
     template<> inline __device__
     float decode<float>(int32_t bits)
     {
       const int32_t sign = 0x80000000;
       if (bits & sign) bits ^= 0x7fffffff;
-      return __int_as_float(bits);
+// #ifdef __HIPCC__
+//       float ff = ((const float &)bits);
+//       return ff;
+// #endif
+      float f;
+      memcpy(&f,&bits,sizeof(4));
+      return f;
+      // float *f = (float *)&bits;
+      // return *f;
+      // return __int_as_float(bits);
     }
-    template<> inline __device__
-    int32_t decode<int32_t>(int32_t bits)
-    { return bits; }
-    template<> inline __device__
-    int64_t decode<int64_t>(int64_t bits)
-    { return bits; }
+    // template<> inline __device__
+    // int32_t decode<int32_t>(int32_t bits)
+    // { return bits; }
+    // template<> inline __device__
+    // int64_t decode<int64_t>(int64_t bits)
+    // { return bits; }
 
-    template<> inline __device__
-    double decode<double>(int64_t bits)
-    {
-      const int64_t sign = 0x8000000000000000LL;
-      if (bits & sign) bits ^= 0x7fffffffffffffffLL;
-      return __longlong_as_double(bits);
-    }
+    // template<> inline __device__
+    // double decode<double>(int64_t bits)
+    // {
+    //   const int64_t sign = 0x8000000000000000LL;
+    //   if (bits & sign) bits ^= 0x7fffffffffffffffLL;
+    //   return __longlong_as_double(bits);
+    // }
     
     template<typename box_t>
     struct CUBQL_ALIGN(8) AtomicBox {
@@ -219,29 +233,37 @@ namespace cuBQL {
       using scalar_t = typename box_t::scalar_t;
 #pragma unroll
       for (int d=0;d<box_t::numDims;d++) {
+#if 1
+        lower[d] = encode(+1e6f);//encode(+FLT_MAX);
+        upper[d] = encode(-1e6f);//encode(-FLT_MAX);
+#else
         lower[d] = encode(empty_box_lower<scalar_t>());//encode(+FLT_MAX);
         upper[d] = encode(empty_box_upper<scalar_t>());//encode(-FLT_MAX);
+#endif
       }
     }
 
     template<typename box_t> inline __device__
-    void atomic_grow(AtomicBox<box_t> &abox, const typename box_t::vec_t &other)
+    void atomic_grow(AtomicBox<box_t> &abox,
+                     typename box_t::vec_t other)
     {
       using scalar_t = typename AtomicBox<box_t>::scalar_t;
+      auto in_y = abox.upper[1];
 #pragma unroll
       for (int d=0;d<box_t::numDims;d++) {
-        const typename int_type_of<scalar_t>::type enc
-          = //AtomicBox<box_t>::
-          encode(other[d]);//get(other,d));
+        // const typename int_type_of<scalar_t>::type enc
+        const int32_t enc
+          = encode(other[d]);
         if (enc < abox.lower[d])
-          atomic_min(&abox.lower[d],enc);
+          atomic_min((volatile int32_t*)abox.lower+d,enc);
         if (enc > abox.upper[d])
-          atomic_max(&abox.upper[d],enc);
+          atomic_max((volatile int32_t*)abox.upper+d,enc);
       }
     } 
     
     template<typename box_t>
-    inline __device__ void atomic_grow(AtomicBox<box_t> &abox, const box_t &other)
+    inline __device__
+    void atomic_grow(AtomicBox<box_t> &abox, box_t other)
     {
       using scalar_t = typename AtomicBox<box_t>::scalar_t;
 #pragma unroll
@@ -252,13 +274,14 @@ namespace cuBQL {
         const typename int_type_of<scalar_t>::type 
           enc_upper = //AtomicBox<box_t>::
           encode(other.get_upper(d));
-        if (enc_lower < abox.lower[d]) atomic_min(&abox.lower[d],enc_lower);
-        if (enc_upper > abox.upper[d]) atomic_max(&abox.upper[d],enc_upper);
+        if (enc_lower < abox.lower[d]) atomic_min(abox.lower+d,enc_lower);
+        if (enc_upper > abox.upper[d]) atomic_max(abox.upper+d,enc_upper);
       }
     }
 
     template<typename box_t>
-    inline __device__ void atomic_grow(AtomicBox<box_t> &abox, const AtomicBox<box_t> &other)
+    inline __device__ void atomic_grow(AtomicBox<box_t> &abox,
+                                       const AtomicBox<box_t> &other)
     {
       using scalar_t = typename AtomicBox<box_t>::scalar_t;
 #pragma unroll
