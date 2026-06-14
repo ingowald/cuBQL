@@ -23,7 +23,7 @@ namespace cub {
 namespace cuBQL {
   namespace gpuBuilder_impl {
 
-    inline __device__ void atomic_min(volatile int32_t *v, int32_t vv)
+    inline __device__ void atomic_min(int32_t *v, int32_t vv)
     { atomicMin((int *)v,(int)vv); }
     inline __device__ void atomic_min(int64_t *v, int64_t vv)
     { atomicMin((long long *)v,(long long)vv); }
@@ -32,7 +32,7 @@ namespace cuBQL {
     inline __device__ void atomic_min(uint64_t *v, uint64_t vv)
     { atomicMin((unsigned long long *)v,(unsigned long long)vv); }
 
-    inline __device__ void atomic_max(volatile int32_t *v, int32_t vv)
+    inline __device__ void atomic_max(int32_t *v, int32_t vv)
     { atomicMax((int *)v,(int)vv); }
     inline __device__ void atomic_max(int64_t *v, int64_t vv)
     { atomicMax((long long *)v,(long long)vv); }
@@ -93,7 +93,7 @@ namespace cuBQL {
     template<> inline __device__
     int32_t encode(float f)
     {
-      const int32_t sign = 0x80000000U;
+      const int32_t sign = 0x80000000;
       int32_t bits = __float_as_int(f);
       if (bits & sign) bits ^= 0x7fffffff;
       return bits;
@@ -237,9 +237,9 @@ namespace cuBQL {
         const typename int_type_of<scalar_t>::type enc
           = encode(other[d]);
         if (enc < abox.lower[d])
-          atomic_min((volatile int32_t*)abox.lower+d,enc);
+          atomic_min(abox.lower+d,enc);
         if (enc > abox.upper[d])
-          atomic_max((volatile int32_t*)abox.upper+d,enc);
+          atomic_max(abox.upper+d,enc);
       }
     } 
     
