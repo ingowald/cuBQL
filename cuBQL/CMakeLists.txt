@@ -6,6 +6,15 @@
 # in one of his/her source files
 add_library(cuBQL INTERFACE)
 
+if (WIN32)
+  target_compile_options(cuBQL INTERFACE
+    $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler="/Zc:preprocessor">
+  )
+#  target_compile_options(${PTX_TARGET} PRIVATE
+#    $<$<COMPILE_LANGUAGE:CUDA>:-std=c++17>
+#  )
+endif()
+
 target_sources(cuBQL INTERFACE
   # main public "interface" to this library
   bvh.h
