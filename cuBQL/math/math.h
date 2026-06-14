@@ -4,14 +4,15 @@
 #pragma once
 
 #include "cuBQL/math/common.h"
-#ifdef __CUDACC__
-#include <cuda/std/limits>
-#endif
+// #ifdef __CUDACC__
+// #include <cuda/std/limits>
+// #endif
 #include <limits>
 
 namespace cuBQL {
   
-#ifdef __CUDACC__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+// #if defined(__CUDACC__) || defined(__HIPCC__)
   // make sure we use the built-in cuda functoins that use floats, not
   // the c-stdlib ones that use doubles.
   using ::min;
@@ -21,14 +22,15 @@ namespace cuBQL {
   using std::max;
 #endif
 
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+// #if defined(__CUDA_ARCH__) || defined(__HIPCC__)
 # define CUBQL_INF CUDART_INF_F
 // # define CUBQL_INF ::cuda::std::numeric_limits<float>::infinity()
 #else
 # define CUBQL_INF std::numeric_limits<float>::infinity()
 #endif
 
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || defined(__HIPCC__)
 #else
     inline __cubql_both float __int_as_float(int i) { return (const float &)i; }
     inline __cubql_both int __float_as_int(float f) { return (const int &)f; }

@@ -40,7 +40,7 @@ namespace cuBQL {
 #else
     auto dbg = _dbg;
 #endif
-    if (dbg) /* nothing, just for 'maybe_unused' */; 
+    if (dbg) {/* nothing, just for 'maybe_unused' */};
     
     using vec3 = vec_t<T,3>;
     const vec3 v0(tri.a);
