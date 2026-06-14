@@ -453,7 +453,6 @@ namespace cuBQL {
       cudaEvent_t stateDownloadedEvent;
       CUBQL_CUDA_CALL(EventCreate(&stateDownloadedEvent));
       while (true) {
-        int pre_numNodes = numNodes;
         CUBQL_CUDA_CALL(MemcpyAsync(&numNodes,&buildState->numNodes,
                                     sizeof(numNodes),cudaMemcpyDeviceToHost,s));
         CUBQL_CUDA_CALL(EventRecord(stateDownloadedEvent,s));

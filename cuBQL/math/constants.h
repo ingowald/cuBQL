@@ -6,7 +6,7 @@
 #include <limits>
 #include <limits.h>
 #if defined(__CUDACC__) && !defined(CUDART_INF_F)
-// #include <math_constants.h>
+#include <math_constants.h>
 #endif
 
 #ifndef M_PI
