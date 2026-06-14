@@ -554,14 +554,14 @@ namespace cuBQL {
                     GpuMemoryResource& memResource)
     { real3_sahBuilder<float>(bvh,boxes,_numPrims,buildConfig,s,memResource); }
     
-    // template<>
-    // inline void sahBuilder(BinaryBVH<double,3>  &bvh,
-    //                 const box_t<double,3> *boxes,
-    //                 uint32_t     _numPrims,
-    //                 BuildConfig  buildConfig,
-    //                 cudaStream_t s,
-    //                 GpuMemoryResource& memResource)
-    // { real3_sahBuilder<double>(bvh,boxes,_numPrims,buildConfig,s,memResource); }
+    template<>
+    inline void sahBuilder(BinaryBVH<double,3>  &bvh,
+                    const box_t<double,3> *boxes,
+                    uint32_t     _numPrims,
+                    BuildConfig  buildConfig,
+                    cudaStream_t s,
+                    GpuMemoryResource& memResource)
+    { real3_sahBuilder<double>(bvh,boxes,_numPrims,buildConfig,s,memResource); }
   } // ::cuBQL::sahBuilder_impl
 
   namespace cuda {
