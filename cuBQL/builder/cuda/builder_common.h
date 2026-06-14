@@ -81,86 +81,75 @@ namespace cuBQL {
 
     template<typename T> struct int_type_of;
     template<> struct int_type_of<float> { typedef int32_t type; };
-    // template<> struct int_type_of<double> { typedef int64_t type; };
-    // template<> struct int_type_of<int32_t> { typedef int32_t type; };
-    // template<> struct int_type_of<int64_t> { typedef int64_t type; };
-    // template<> struct int_type_of<uint32_t> { typedef uint32_t type; };
-    // template<> struct int_type_of<uint64_t> { typedef uint64_t type; };
+    template<> struct int_type_of<double> { typedef int64_t type; };
+    template<> struct int_type_of<int32_t> { typedef int32_t type; };
+    template<> struct int_type_of<int64_t> { typedef int64_t type; };
+    template<> struct int_type_of<uint32_t> { typedef uint32_t type; };
+    template<> struct int_type_of<uint64_t> { typedef uint64_t type; };
 
-    // template<typename T> inline __device__
-    // typename int_type_of<T>::type encode(T v);
+    template<typename T> inline __device__
+    typename int_type_of<T>::type encode(T v);
     
-    // template<>
-    inline __device__
-    int32_t encode(const float &f)
+    template<> inline __device__
+    int32_t encode(float f)
     {
-      // int *ptr = (int *)&f;
-      
       const int32_t sign = 0x80000000U;
-      // int32_t bits = __float_as_int(f);
-      int32_t bits;// = *ptr;//(const int &)f;
-      memcpy(&bits,&f,4);
+      int32_t bits = __float_as_int(f);
       if (bits & sign) bits ^= 0x7fffffff;
       return bits;
     }
-    // template<> inline __device__
-    // int64_t encode(double f)
-    // {
-    //   const int64_t sign = 0x8000000000000000LL;
-    //   int64_t bits = __double_as_longlong(f);
-    //   if (bits & sign) bits ^= 0x7fffffffffffffffLL;
-    //   return bits;
-    // }
-    // template<> inline __device__
-    // int32_t encode(int32_t bits)
-    // {
-    //   return bits;
-    // }
-    // template<> inline __device__
-    // int64_t encode(int64_t bits)
-    // {
-    //   return bits;
-    // }
+    
+    template<> inline __device__
+    int64_t encode(double f)
+    {
+      const int64_t sign = 0x8000000000000000LL;
+      int64_t bits = __double_as_longlong(f);
+      if (bits & sign) bits ^= 0x7fffffffffffffffLL;
+      return bits;
+    }
+    template<> inline __device__
+    int32_t encode(int32_t bits)
+    {
+      return bits;
+    }
+    template<> inline __device__
+    int64_t encode(int64_t bits)
+    {
+      return bits;
+    }
 
     template<typename T> inline __device__
     T decode(int32_t v);
-    // template<typename T> inline __device__
-    // T decode(uint32_t v);
-    // template<typename T> inline __device__
-    // T decode(int64_t v);
-    // template<typename T> inline __device__
-    // T decode(uint64_t v);
+    template<typename T> inline __device__
+    T decode(uint32_t v);
+    template<typename T> inline __device__
+    T decode(int64_t v);
+    template<typename T> inline __device__
+    T decode(uint64_t v);
 
     template<> inline __device__
     float decode<float>(int32_t bits)
     {
       const int32_t sign = 0x80000000;
       if (bits & sign) bits ^= 0x7fffffff;
-// #ifdef __HIPCC__
-//       float ff = ((const float &)bits);
-//       return ff;
-// #endif
-      float f;
-      memcpy(&f,&bits,sizeof(4));
-      return f;
-      // float *f = (float *)&bits;
-      // return *f;
-      // return __int_as_float(bits);
+      return __int_as_float(bits);
     }
-    // template<> inline __device__
-    // int32_t decode<int32_t>(int32_t bits)
-    // { return bits; }
-    // template<> inline __device__
-    // int64_t decode<int64_t>(int64_t bits)
-    // { return bits; }
+    
+    template<> inline __device__
+    int32_t decode<int32_t>(int32_t bits)
+    { return bits; }
+    
+    template<> inline __device__
+    int64_t decode<int64_t>(int64_t bits)
+    { return bits; }
 
-    // template<> inline __device__
-    // double decode<double>(int64_t bits)
-    // {
-    //   const int64_t sign = 0x8000000000000000LL;
-    //   if (bits & sign) bits ^= 0x7fffffffffffffffLL;
-    //   return __longlong_as_double(bits);
-    // }
+    template<> inline __device__
+    double decode<double>(int64_t bits)
+    {
+      const int64_t sign = 0x8000000000000000LL;
+      if (bits & sign) bits ^= 0x7fffffffffffffffLL;
+      return __longlong_as_double(bits);
+    }
     
     template<typename box_t>
     struct CUBQL_ALIGN(8) AtomicBox {
@@ -233,13 +222,8 @@ namespace cuBQL {
       using scalar_t = typename box_t::scalar_t;
 #pragma unroll
       for (int d=0;d<box_t::numDims;d++) {
-#if 1
-        lower[d] = encode(+1e6f);//encode(+FLT_MAX);
-        upper[d] = encode(-1e6f);//encode(-FLT_MAX);
-#else
         lower[d] = encode(empty_box_lower<scalar_t>());//encode(+FLT_MAX);
         upper[d] = encode(empty_box_upper<scalar_t>());//encode(-FLT_MAX);
-#endif
       }
     }
 
@@ -248,11 +232,9 @@ namespace cuBQL {
                      typename box_t::vec_t other)
     {
       using scalar_t = typename AtomicBox<box_t>::scalar_t;
-      auto in_y = abox.upper[1];
 #pragma unroll
       for (int d=0;d<box_t::numDims;d++) {
-        // const typename int_type_of<scalar_t>::type enc
-        const int32_t enc
+        const typename int_type_of<scalar_t>::type enc
           = encode(other[d]);
         if (enc < abox.lower[d])
           atomic_min((volatile int32_t*)abox.lower+d,enc);

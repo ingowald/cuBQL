@@ -77,12 +77,14 @@ namespace cuBQL {
           cudaMemPool_t mempool;
           CUBQL_CUDA_CALL(DeviceGetDefaultMemPool(&mempool, iDevice));
           uint64_t threshold = UINT64_MAX;
-          CUBQL_CUDA_CALL(MemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold));
+          CUBQL_CUDA_CALL
+            (MemPoolSetAttribute(mempool,
+                                 cudaMemPoolAttrReleaseThreshold,
+                                 &threshold));
         }
       } );
     }
     void malloc(void** ptr, size_t size, cudaStream_t s) override {
-      PING;
 #ifndef NDEBUG
       if (s_numDevices > 1 && s == 0)
         std::cerr << "@cuBQL: warning; async memory allocator used with default stream."

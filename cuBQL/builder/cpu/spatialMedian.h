@@ -112,31 +112,11 @@ namespace cuBQL {
           node.bounds = box_t<T,D>()
             .including(bvh.nodes[node.admin.offset+0].bounds)
             .including(bvh.nodes[node.admin.offset+1].bounds);
-          if (node.bounds.empty()) {
-            PING;
-            PRINT(bvh.numNodes);
-            PRINT(node.admin.offset);
-            PRINT(node.admin.count);
-            PRINT(bvh.nodes[node.admin.offset+0].bounds);
-            PRINT(bvh.nodes[node.admin.offset+1].bounds);
-
-            box3f a = box_t<T,D>()
-            .including(bvh.nodes[node.admin.offset+0].bounds);
-            box3f b = box_t<T,D>()
-            .including(bvh.nodes[node.admin.offset+0].bounds)
-            .including(bvh.nodes[node.admin.offset+1].bounds);
-            box3f c = box_t<T,D>();
-            PRINT(a);
-            PRINT(b);
-            PRINT(c);
-          }
         } else {
           node.bounds.clear();
           for (int i=0;i<node.admin.count;i++)
             node.bounds.extend(boxes[bvh.primIDs[node.admin.offset+i]]);
         }
-        if (node.bounds.empty())
-          { PING; PRINT(nodeID); PRINT(node.admin.count); }
       }
                          
       template<typename T, int D>
@@ -147,16 +127,14 @@ namespace cuBQL {
       {
         using box_t = ::cuBQL::box_t<T,D>;
         std::vector<int> primIDs;
-        PING; PRINT(numPrims);
         for (int i=0;i<numPrims;i++) {
           box_t box = boxes[i];
-          if (numPrims == 1) PRINT(box);
           if (box.empty()) continue;
           primIDs.push_back(i);
         }
 
-
         if (primIDs.empty()) {
+          // if we had no valid input prims whatsoever
           bvh.nodes = new typename BinaryBVH<T,D>::Node[1];
           bvh.nodes[0].bounds = box3f();
           bvh.nodes[0].admin.offset = 0;
@@ -166,11 +144,9 @@ namespace cuBQL {
             bvh.primIDs[i] = i;
           bvh.numPrims = numPrims;
           bvh.numNodes = 1;
-          PING;
           return;
         }
         
-        PRINT(primIDs.size());
         std::vector<int>  altPrimIDs(primIDs.size());
         std::vector<Topo> topo(1);
         
@@ -190,8 +166,6 @@ namespace cuBQL {
         }
         topo.clear();
         refit(0,bvh,boxes);
-        PING;
-        PRINT(bvh.nodes[0].bounds);
       }
     } // spatialMedian_impl
     
