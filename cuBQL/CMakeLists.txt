@@ -66,6 +66,10 @@ function(add_specific_instantiation device suffix T D)
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
       )
+    if (CUBQL_USE_HIP)
+      set_source_files_properties(builder/${device}/instantiate_builders.${suffix}
+        PROPERTIES LANGUAGE HIP)
+    endif()
   endif()
   set_target_properties(cuBQL_${device}_${T}${D}
     PROPERTIES
@@ -91,6 +95,10 @@ function(add_specific_instantiation device suffix T D)
       PUBLIC
       -DCUBQL_HAVE_CUDA=1
       )
+    if (CUBQL_USE_HIP)
+      set_source_files_properties(builder/${device}/instantiate_builders.${suffix}
+        PROPERTIES LANGUAGE HIP)
+    endif()
   endif()
   set_target_properties(cuBQL_${device}_${T}${D}_static
     PROPERTIES
@@ -130,7 +138,7 @@ endfunction()
 foreach(T IN ITEMS float int double longlong)
   foreach(D IN ITEMS 2 3 4)
     add_specific_instantiation(cpu cpp ${T} ${D})
-    if (CUBQL_HAVE_CUDA)
+    if (CUBQL_HAVE_CUDA OR CUBQL_HAVE_HIP)
       add_specific_instantiation(cuda cu ${T} ${D})
     endif()
   endforeach()

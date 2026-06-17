@@ -13,10 +13,27 @@ cmake_policy(SET CMP0048 NEW)
 set(CMAKE_BUILD_TYPE_INIT "Release")
 project(cuBQL VERSION ${CUBQL_VERSION} LANGUAGES C CXX)
 
+# Build the GPU code with HIP for AMD GPUs instead of CUDA. When ON, the .cu
+# sources are compiled as HIP (LANGUAGE HIP) and CUBQL_HAVE_HIP is set; the
+# per-type instantiation targets and GPU samples are built the same way as for
+# CUDA, gated on (CUBQL_HAVE_CUDA OR CUBQL_HAVE_HIP).
+option(CUBQL_USE_HIP "Build cuBQL GPU code with HIP for AMD GPUs" OFF)
+
+# CUBQL_HAVE_CUDA / CUBQL_HAVE_HIP record which (if any) GPU toolchain is in
+# use; the GPU instantiation targets and samples below are gated on either.
+set(CUBQL_HAVE_CUDA OFF)
+set(CUBQL_HAVE_HIP OFF)
 if (CUBQL_OMP)
   set(CUBQL_DISABLE_CUDA ON)
 endif()
-if (CUBQL_DISABLE_CUDA)
+if (CUBQL_USE_HIP)
+  message("#cuBQL: building GPU code with HIP for AMD GPUs")
+  enable_language(HIP)
+  if (NOT DEFINED CMAKE_HIP_ARCHITECTURES OR CMAKE_HIP_ARCHITECTURES STREQUAL "")
+    set(CMAKE_HIP_ARCHITECTURES "gfx90a")
+  endif()
+  set(CUBQL_HAVE_HIP ON)
+elseif (CUBQL_DISABLE_CUDA)
   message("#cuBQL: CUDA _DISABLED_ by user request")
   set(CUBQL_HAVE_CUDA OFF)
 else()
@@ -95,7 +112,10 @@ if (CUBQL_IS_SUBPROJECT)
       )
   endif()
 else()
-  if (CMAKE_CUDA_ARCHITECTURES)
+  if (CUBQL_USE_HIP)
+    # HIP build: the arch lives in CMAKE_HIP_ARCHITECTURES (defaulted above);
+    # do not derive or require a CUDA arch.
+  elseif (CMAKE_CUDA_ARCHITECTURES)
     # set on the cmdline, for a local build
     set(CUBQL_CUDA_ARCHITECTURES_INIT "${CMAKE_CUDA_ARCHITECTURES}")
   elseif (${CMAKE_VERSION} VERSION_LESS 3.24)
@@ -119,10 +139,12 @@ else()
   else()
     set(CUBQL_CUDA_ARCHITECTURES_INIT "native")
   endif()
-  set(CUBQL_CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES_INIT}" CACHE STRING
-    "Which CUDA architecture to build for")
-  set(CMAKE_CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES}")
-  
+  if (NOT CUBQL_USE_HIP)
+    set(CUBQL_CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES_INIT}" CACHE STRING
+      "Which CUDA architecture to build for")
+    set(CMAKE_CUDA_ARCHITECTURES "${CUBQL_CUDA_ARCHITECTURES}")
+  endif()
+
   if(CMAKE_CONFIGURATION_TYPES) # multiconfig generator?
     set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE) 
   else()
