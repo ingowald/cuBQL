@@ -316,6 +316,12 @@ However, we strongly suggest to use `cmake`, include cuBQL as a cmake
 `add_subdirectory(...)`, and then `target_link_libraries(...)` with
 the desired cuBQL cmake target.
 
+cuBQL also builds for AMD GPUs through ROCm/HIP. Configure with
+`-DCUBQL_USE_HIP=ON` (and set `CMAKE_HIP_ARCHITECTURES` to the target
+GPU, for example `gfx90a`) to compile the GPU builders and traversers
+with `hipcc` instead of `nvcc`; the same headers and cmake targets are
+used. Without `CUBQL_USE_HIP` the build is the usual CUDA build.
+
 ## Building in Header-only (explicit instantiation) mode:
 
 - in your own CUDA sources (say, `userMain.cu`):
