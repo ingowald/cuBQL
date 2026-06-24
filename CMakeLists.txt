@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA
 # CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 
 set(CUBQL_VERSION_MAJOR 1)
 set(CUBQL_VERSION_MINOR 3)
-set(CUBQL_VERSION_PATCH 0)
+set(CUBQL_VERSION_PATCH 1)
 set(CUBQL_VERSION ${CUBQL_VERSION_MAJOR}.${CUBQL_VERSION_MINOR}.${CUBQL_VERSION_PATCH})
 
 cmake_policy(SET CMP0048 NEW)
@@ -111,6 +111,7 @@ if (CUBQL_IS_SUBPROJECT)
       "====================================================================="
       )
   endif()
+  set(CUBQL_VERSION ${CUBQL_VERSION} PARENT_SCOPE)
 else()
   if (CUBQL_USE_HIP)
     # HIP build: the arch lives in CMAKE_HIP_ARCHITECTURES (defaulted above);
